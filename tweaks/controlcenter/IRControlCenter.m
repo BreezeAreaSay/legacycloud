@@ -22,7 +22,6 @@
 #define kIRCCActivatorDefaults @"ControlCenterActivatorDefaults"
 #define kIRCCListener @"com.ios6revive.controlcenter"
 
-static const CGFloat kIRCCPanelHeight = 356;
 static const UIWindowLevel kIRCCWindowLevel = 1050;
 
 #pragma mark - Приватные API SpringBoard iOS 6.1
@@ -87,6 +86,10 @@ static const UIWindowLevel kIRCCWindowLevel = 1050;
 
 @interface SBApplicationController (IRControlCenter)
 - (SBApplication *)applicationWithDisplayIdentifier:(NSString *)identifier;
+@end
+
+@interface UIApplication (IRControlCenter)
+- (int)activeInterfaceOrientation;
 @end
 
 @interface SBUIController (IRControlCenter)
@@ -266,38 +269,53 @@ static void IRLaunch(NSString *identifier) {
 
 @interface IRCCPanel : UIView
 @property(nonatomic, copy) void (^onLaunch)(NSString *identifier);
++ (CGFloat)heightForLandscape:(BOOL)landscape;
+- (instancetype)initWithFrame:(CGRect)frame landscape:(BOOL)landscape;
 - (void)refresh;
 @end
 
 @implementation IRCCPanel {
     NSArray *_toggles;
+    NSArray *_switches;
+    NSArray *_media;
+    NSArray *_apps;
     UISlider *_brightness;
+    MPVolumeView *_volume;
     UILabel *_artist;
     UILabel *_title;
     UILabel *_album;
     IRCCButton *_playPause;
 }
 
-static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
-    UILabel *label = [[UILabel alloc] initWithFrame:frame];
+static UILabel *IRCCLabel(void) {
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
     label.backgroundColor = [UIColor clearColor];
     label.textAlignment = NSTextAlignmentCenter;
-    label.font = font;
-    label.textColor = color;
     label.shadowColor = [UIColor colorWithWhite:0 alpha:0.8];
     label.shadowOffset = CGSizeMake(0, -1);
     return label;
 }
 
-static IRCCButton *IRCCMakeButton(IRCCGlyph glyph, IRCCButtonStyle style, CGRect frame, NSInteger tag, id target, SEL action) {
+static IRCCButton *IRCCMakeButton(IRCCGlyph glyph, IRCCButtonStyle style, NSInteger tag, id target, SEL action) {
     IRCCButton *button = [IRCCButton buttonWithGlyph:glyph style:style];
-    button.frame = frame;
     button.tag = tag;
     [button addTarget:target action:action forControlEvents:UIControlEventTouchUpInside];
     return button;
 }
 
-- (instancetype)initWithFrame:(CGRect)frame {
+// Ряд одинаковых кнопок с равными промежутками внутри rect
+static void IRCCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
+    CGFloat gap = (rect.size.width - buttons.count * size) / (buttons.count + 1);
+    [buttons enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
+        button.frame = CGRectMake(rect.origin.x + gap + i * (size + gap), rect.origin.y, size, size);
+    }];
+}
+
++ (CGFloat)heightForLandscape:(BOOL)landscape {
+    return landscape ? 152 : 356;
+}
+
+- (instancetype)initWithFrame:(CGRect)frame landscape:(BOOL)landscape {
     if (!(self = [super initWithFrame:frame]))
         return nil;
     CGFloat width = frame.size.width;
@@ -314,7 +332,7 @@ static IRCCButton *IRCCMakeButton(IRCCGlyph glyph, IRCCButtonStyle style, CGRect
     [self addSubview:edge];
 
     // Язычок: панель можно стянуть вниз
-    UIView *grabber = [[UIView alloc] initWithFrame:CGRectMake(width / 2 - 18, 7, 36, 5)];
+    UIView *grabber = [[UIView alloc] initWithFrame:CGRectMake(width / 2 - 18, 6, 36, 5)];
     grabber.backgroundColor = [UIColor colorWithWhite:0 alpha:0.6];
     grabber.layer.cornerRadius = 2.5;
     grabber.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
@@ -324,55 +342,87 @@ static IRCCButton *IRCCMakeButton(IRCCGlyph glyph, IRCCButtonStyle style, CGRect
     // Переключатели
     const IRCCGlyph glyphs[] = {IRCCGlyphAirplane, IRCCGlyphWiFi, IRCCGlyphBluetooth, IRCCGlyphMoon, IRCCGlyphRotationLock};
     const IRCCToggle toggles[] = {IRCCAirplane, IRCCWiFi, IRCCBluetooth, IRCCDoNotDisturb, IRCCRotationLock};
-    NSMutableArray *buttons = [NSMutableArray array];
-    CGFloat gap = (width - 5 * 52) / 6;
-    for (int i = 0; i < 5; i++) {
-        IRCCButton *button = IRCCMakeButton(glyphs[i], IRCCButtonStyleSquare, CGRectMake(gap + i * (52 + gap), 20, 52, 52),
-                                            toggles[i], self, @selector(toggleTapped:));
-        [self addSubview:button];
-        [buttons addObject:button];
-    }
+    NSMutableArray *switches = [NSMutableArray array];
+    for (int i = 0; i < 5; i++)
+        [switches addObject:IRCCMakeButton(glyphs[i], IRCCButtonStyleSquare, toggles[i], self, @selector(toggleTapped:))];
+    _switches = switches;
 
     // Яркость — родной ползунок iOS 6
-    _brightness = [[UISlider alloc] initWithFrame:CGRectMake(16, 88, width - 32, 23)];
+    _brightness = [[UISlider alloc] initWithFrame:CGRectZero];
     _brightness.minimumValueImage = IRCCGlyphImage(IRCCGlyphSunSmall, 18, [UIColor colorWithWhite:1 alpha:0.8]);
     _brightness.maximumValueImage = IRCCGlyphImage(IRCCGlyphSunLarge, 22, [UIColor colorWithWhite:1 alpha:0.8]);
     [_brightness addTarget:self action:@selector(brightnessChanged:) forControlEvents:UIControlEventValueChanged];
-    [self addSubview:_brightness];
 
     // Музыка: исполнитель, название, альбом и круглые серебристые кнопки
-    _artist = IRCCLabel(CGRectMake(20, 122, width - 40, 16), [UIFont boldSystemFontOfSize:13], [UIColor colorWithWhite:0.62 alpha:1]);
-    _title = IRCCLabel(CGRectMake(20, 138, width - 40, 22), [UIFont boldSystemFontOfSize:18], [UIColor whiteColor]);
-    _album = IRCCLabel(CGRectMake(20, 161, width - 40, 15), [UIFont boldSystemFontOfSize:11], [UIColor colorWithWhite:0.62 alpha:1]);
-    [self addSubview:_artist];
-    [self addSubview:_title];
-    [self addSubview:_album];
+    _artist = IRCCLabel();
+    _artist.textColor = [UIColor colorWithWhite:0.62 alpha:1];
+    _title = IRCCLabel();
+    _title.textColor = [UIColor whiteColor];
+    _album = IRCCLabel();
+    _album.textColor = [UIColor colorWithWhite:0.62 alpha:1];
     const IRCCGlyph mediaGlyphs[] = {IRCCGlyphPrevious, IRCCGlyphPlay, IRCCGlyphNext};
-    for (int i = 0; i < 3; i++) {
-        // tag: -1 назад, 0 пауза, 1 вперёд
-        IRCCButton *button = IRCCMakeButton(mediaGlyphs[i], IRCCButtonStyleMedia, CGRectMake(width / 2 - 25 + (i - 1) * 76, 184, 50, 50),
-                                            i - 1, self, @selector(mediaTapped:));
-        [self addSubview:button];
-        if (i == 1)
-            _playPause = button;
-    }
-    MPVolumeView *volume = [[MPVolumeView alloc] initWithFrame:CGRectMake(20, 248, width - 40, 23)];
-    [self addSubview:volume];
+    NSMutableArray *media = [NSMutableArray array];
+    for (int i = 0; i < 3; i++) // tag: -1 назад, 0 пауза, 1 вперёд
+        [media addObject:IRCCMakeButton(mediaGlyphs[i], IRCCButtonStyleMedia, i - 1, self, @selector(mediaTapped:))];
+    _media = media;
+    _playPause = media[1];
+    _volume = [[MPVolumeView alloc] initWithFrame:CGRectZero];
 
     // Фонарик и быстрые программы
-    const IRCCGlyph appGlyphs[] = {IRCCGlyphFlashlight, IRCCGlyphTimer, IRCCGlyphCalculator, IRCCGlyphCamera};
-    gap = (width - 4 * 60) / 5;
-    for (int i = 0; i < 4; i++) {
-        CGRect buttonFrame = CGRectMake(gap + i * (60 + gap), 282, 60, 60);
-        IRCCButton *button = i == 0
-            ? IRCCMakeButton(appGlyphs[i], IRCCButtonStyleSquare, buttonFrame, IRCCFlashlight, self, @selector(toggleTapped:))
-            : IRCCMakeButton(appGlyphs[i], IRCCButtonStyleSquare, buttonFrame, i, self, @selector(appTapped:));
-        [self addSubview:button];
-        if (i == 0)
-            [buttons addObject:button];
-    }
-    _toggles = buttons;
+    IRCCButton *flashlight = IRCCMakeButton(IRCCGlyphFlashlight, IRCCButtonStyleSquare, IRCCFlashlight, self, @selector(toggleTapped:));
+    _apps = @[flashlight,
+              IRCCMakeButton(IRCCGlyphTimer, IRCCButtonStyleSquare, 1, self, @selector(appTapped:)),
+              IRCCMakeButton(IRCCGlyphCalculator, IRCCButtonStyleSquare, 2, self, @selector(appTapped:)),
+              IRCCMakeButton(IRCCGlyphCamera, IRCCButtonStyleSquare, 3, self, @selector(appTapped:))];
+    _toggles = [switches arrayByAddingObject:flashlight];
+
+    for (UIView *view in [[[[_switches arrayByAddingObjectsFromArray:_media] arrayByAddingObjectsFromArray:_apps]
+                             arrayByAddingObjectsFromArray:@[_brightness, _volume]] arrayByAddingObjectsFromArray:@[_artist, _title, _album]])
+        [self addSubview:view];
+
+    if (landscape)
+        [self layoutLandscape:width];
+    else
+        [self layoutPortrait:width];
     return self;
+}
+
+// Портрет — как в iOS 7 и в концепте: всё одной колонкой
+- (void)layoutPortrait:(CGFloat)width {
+    IRCCLayoutRow(_switches, CGRectMake(0, 20, width, 52), 52);
+    _brightness.frame = CGRectMake(16, 88, width - 32, 23);
+    _artist.font = [UIFont boldSystemFontOfSize:13];
+    _artist.frame = CGRectMake(20, 122, width - 40, 16);
+    _title.font = [UIFont boldSystemFontOfSize:18];
+    _title.frame = CGRectMake(20, 138, width - 40, 22);
+    _album.font = [UIFont boldSystemFontOfSize:11];
+    _album.frame = CGRectMake(20, 161, width - 40, 15);
+    [_media enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
+        button.frame = CGRectMake(width / 2 - 25 + ((int)i - 1) * 76, 184, 50, 50);
+    }];
+    _volume.frame = CGRectMake(20, 248, width - 40, 23);
+    IRCCLayoutRow(_apps, CGRectMake(0, 282, width, 60), 60);
+}
+
+// Ландшафт — как в iOS 7: переключатели и яркость слева, музыка в середине, программы справа
+- (void)layoutLandscape:(CGFloat)width {
+    CGFloat left = 200, right = 104, middle = width - left - right;
+    IRCCLayoutRow(_switches, CGRectMake(0, 20, left, 34), 34);
+    _brightness.frame = CGRectMake(12, 74, left - 24, 23);
+    _artist.font = [UIFont boldSystemFontOfSize:12];
+    _artist.frame = CGRectMake(left, 16, middle, 15);
+    _title.font = [UIFont boldSystemFontOfSize:15];
+    _title.frame = CGRectMake(left, 31, middle, 19);
+    _album.font = [UIFont boldSystemFontOfSize:10];
+    _album.frame = CGRectMake(left, 50, middle, 13);
+    [_media enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
+        button.frame = CGRectMake(left + middle / 2 - 20 + ((int)i - 1) * 54, 66, 40, 40);
+    }];
+    _volume.frame = CGRectMake(left + 6, 116, middle - 12, 23);
+    // Программы — квадрат 2×2
+    [_apps enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
+        button.frame = CGRectMake(width - right + 8 + (i % 2) * 48, 20 + (i / 2) * 48, 40, 40);
+    }];
 }
 
 - (void)refresh {
@@ -446,6 +496,8 @@ static NSString *IRActivatorConstant(const char *name) {
     IRCCPanel *_panel;
     NSTimer *_refreshTimer;
     CGFloat _panStartY;
+    UIView *_root;
+    BOOL _landscape;
 }
 
 + (instancetype)shared {
@@ -465,21 +517,40 @@ static NSString *IRActivatorConstant(const char *name) {
     return _window && !_window.hidden;
 }
 
-- (void)buildWindow {
-    if (_window)
-        return;
+// Окна SpringBoard не поворачиваются сами: поворачиваем содержимое под программу на экране.
+// _root — экран в ориентации программы; затемнение и панель живут в его координатах.
+- (void)buildWindowForOrientation:(UIInterfaceOrientation)orientation {
     CGRect screen = [self screen];
-    _window = [[UIWindow alloc] initWithFrame:screen];
-    _window.windowLevel = kIRCCWindowLevel;
-    _window.backgroundColor = [UIColor clearColor];
+    if (!_window) {
+        _window = [[UIWindow alloc] initWithFrame:screen];
+        _window.windowLevel = kIRCCWindowLevel;
+        _window.backgroundColor = [UIColor clearColor];
+        _root = [[UIView alloc] initWithFrame:screen];
+        [_window addSubview:_root];
+        _dim = [[UIView alloc] initWithFrame:screen];
+        _dim.backgroundColor = [UIColor blackColor];
+        _dim.alpha = 0;
+        [_dim addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dimTapped)]];
+        [_root addSubview:_dim];
+    }
 
-    _dim = [[UIView alloc] initWithFrame:screen];
-    _dim.backgroundColor = [UIColor blackColor];
-    _dim.alpha = 0;
-    [_dim addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dimTapped)]];
-    [_window addSubview:_dim];
+    BOOL landscape = UIInterfaceOrientationIsLandscape(orientation);
+    CGFloat angle = orientation == UIInterfaceOrientationLandscapeLeft ? -M_PI_2
+                  : orientation == UIInterfaceOrientationLandscapeRight ? M_PI_2
+                  : orientation == UIInterfaceOrientationPortraitUpsideDown ? M_PI : 0;
+    _root.transform = CGAffineTransformIdentity;
+    _root.bounds = landscape ? CGRectMake(0, 0, screen.size.height, screen.size.width) : CGRectMake(0, 0, screen.size.width, screen.size.height);
+    _root.center = CGPointMake(CGRectGetMidX(screen), CGRectGetMidY(screen));
+    _root.transform = CGAffineTransformMakeRotation(angle);
+    _dim.frame = _root.bounds;
 
-    _panel = [[IRCCPanel alloc] initWithFrame:CGRectMake(0, screen.size.height, screen.size.width, kIRCCPanelHeight)];
+    if (_panel && _landscape == landscape)
+        return;
+    [_panel removeFromSuperview];
+    _landscape = landscape;
+    CGSize size = _root.bounds.size;
+    _panel = [[IRCCPanel alloc] initWithFrame:CGRectMake(0, size.height, size.width, [IRCCPanel heightForLandscape:landscape])
+                                    landscape:landscape];
     // Через синглтон, а не self: без цикла удержания и без __weak (на armv7 он требует таблиц SjLj)
     _panel.onLaunch = ^(NSString *identifier) {
         [[IRCCController shared] hideAnimated:YES completion:^{
@@ -489,7 +560,11 @@ static NSString *IRActivatorConstant(const char *name) {
     UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panelPan:)];
     pan.delegate = self;
     [_panel addGestureRecognizer:pan];
-    [_window addSubview:_panel];
+    [_root addSubview:_panel];
+}
+
+- (CGFloat)panelHeight {
+    return _panel.frame.size.height;
 }
 
 // Пан по панели не должен мешать ползункам
@@ -501,34 +576,38 @@ static NSString *IRActivatorConstant(const char *name) {
 }
 
 - (void)setPanelOffset:(CGFloat)offset {
-    // offset: 0 — закрыта, kIRCCPanelHeight — открыта полностью
-    offset = MAX(0, MIN(kIRCCPanelHeight, offset));
+    // offset: 0 — закрыта, высота панели — открыта полностью
+    CGFloat height = [self panelHeight];
+    offset = MAX(0, MIN(height, offset));
     CGRect frame = _panel.frame;
-    frame.origin.y = [self screen].size.height - offset;
+    frame.origin.y = _root.bounds.size.height - offset;
     _panel.frame = frame;
-    _dim.alpha = 0.4 * offset / kIRCCPanelHeight;
+    _dim.alpha = height > 0 ? 0.4 * offset / height : 0;
 }
 
 - (CGFloat)panelOffset {
-    return [self screen].size.height - _panel.frame.origin.y;
+    return _root.bounds.size.height - _panel.frame.origin.y;
 }
 
 - (void)showAnimated {
     if (self.visible)
         return;
-    [self buildWindow];
+    UIApplication *springBoard = [UIApplication sharedApplication];
+    UIInterfaceOrientation orientation = [springBoard respondsToSelector:@selector(activeInterfaceOrientation)]
+        ? (UIInterfaceOrientation)[springBoard activeInterfaceOrientation] : UIInterfaceOrientationPortrait;
+    [self buildWindowForOrientation:orientation];
     [_panel refresh];
     [self setPanelOffset:0];
     _window.hidden = NO;
     [_refreshTimer invalidate];
     _refreshTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:_panel selector:@selector(refresh) userInfo:nil repeats:YES];
     [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-        [self setPanelOffset:kIRCCPanelHeight];
+        [self setPanelOffset:[self panelHeight]];
     } completion:nil];
 }
 
 - (void)panelPan:(UIPanGestureRecognizer *)pan {
-    CGFloat dy = [pan translationInView:_window].y;
+    CGFloat dy = [pan translationInView:_root].y;
     switch (pan.state) {
     case UIGestureRecognizerStateBegan:
         _panStartY = [self panelOffset];
@@ -538,12 +617,12 @@ static NSString *IRActivatorConstant(const char *name) {
         break;
     case UIGestureRecognizerStateEnded:
     case UIGestureRecognizerStateCancelled: {
-        CGFloat velocity = [pan velocityInView:_window].y;
-        if (velocity > 250 || (velocity > -250 && [self panelOffset] < kIRCCPanelHeight * 2 / 3)) {
+        CGFloat velocity = [pan velocityInView:_root].y;
+        if (velocity > 250 || (velocity > -250 && [self panelOffset] < [self panelHeight] * 2 / 3)) {
             [self hideAnimated:YES completion:nil];
         } else {
             [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-                [self setPanelOffset:kIRCCPanelHeight];
+                [self setPanelOffset:[self panelHeight]];
             } completion:nil];
         }
         break;

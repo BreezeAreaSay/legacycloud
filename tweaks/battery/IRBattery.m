@@ -114,36 +114,31 @@ done:
     return result;
 }
 
+static const void *kIRRenderedLowPowerKey = &kIRRenderedLowPowerKey;
+
 static id (*orig_contentsImageForStyle)(UIStatusBarItemView *, SEL, int);
 static id hook_contentsImageForStyle(UIStatusBarItemView *self, SEL _cmd, int style) {
     id image = orig_contentsImageForStyle(self, _cmd, style);
+    objc_setAssociatedObject(self, kIRRenderedLowPowerKey, @(gLowPower), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (!gLowPower || ![image isKindOfClass:[UIImage class]])
         return image;
     return IRTintBattery(image) ?: image;
 }
 
-static void IRCollectBatteryViews(UIView *view, Class batteryClass, NSMutableArray *found) {
-    if ([view isKindOfClass:batteryClass])
-        [found addObject:view];
-    for (UIView *subview in view.subviews)
-        IRCollectBatteryViews(subview, batteryClass, found);
+// Значок нарисован в другом режиме — говорим UIKit, что его надо перерисовать.
+// Тогда картинку, ширину и раскладку строки состояния пересчитывает сам UIKit.
+static BOOL (*orig_updateForNewData)(UIStatusBarItemView *, SEL, id, int);
+static BOOL hook_updateForNewData(UIStatusBarItemView *self, SEL _cmd, id data, int actions) {
+    BOOL changed = orig_updateForNewData(self, _cmd, data, actions);
+    NSNumber *rendered = objc_getAssociatedObject(self, kIRRenderedLowPowerKey);
+    return changed || (rendered && rendered.boolValue != gLowPower);
 }
 
 static void IRRefreshBatteryViews(void) {
-    Class batteryClass = NSClassFromString(@"UIStatusBarBatteryItemView");
     UIApplication *app = [UIApplication sharedApplication];
-    if (!batteryClass || !app)
-        return;
-    NSMutableArray *found = [NSMutableArray array];
-    if ([app respondsToSelector:@selector(statusBar)])
-        IRCollectBatteryViews([app statusBar], batteryClass, found);
-    for (UIWindow *window in app.windows)
-        IRCollectBatteryViews(window, batteryClass, found);
-    for (UIStatusBarItemView *view in found) {
-        if ([view respondsToSelector:@selector(updateContentsAndWidth)])
-            [view updateContentsAndWidth];
-        [view setNeedsDisplay];
-    }
+    UIStatusBar *statusBar = [app respondsToSelector:@selector(statusBar)] ? (UIStatusBar *)[app statusBar] : nil;
+    if ([statusBar respondsToSelector:@selector(forceUpdateData:)])
+        [statusBar forceUpdateData:NO];
 }
 
 static void IRStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
@@ -285,8 +280,9 @@ __attribute__((constructor)) static void IRBatteryInit(void) {
     @autoreleasepool {
         gLowPower = IRFlag(kIRLowPower, IRStateLowPower, NO);
         IRObserveDarwin(IR_NOTIFY_STATE, IRStateChanged);
-        IR_HOOK(objc_getClass("UIStatusBarBatteryItemView"), @selector(contentsImageForStyle:),
-                hook_contentsImageForStyle, &orig_contentsImageForStyle);
+        Class batteryView = objc_getClass("UIStatusBarBatteryItemView");
+        IR_HOOK(batteryView, @selector(contentsImageForStyle:), hook_contentsImageForStyle, &orig_contentsImageForStyle);
+        IR_HOOK(batteryView, @selector(updateForNewData:actions:), hook_updateForNewData, &orig_updateForNewData);
 
         if (!IRIsProcess(@"com.apple.springboard"))
             return;

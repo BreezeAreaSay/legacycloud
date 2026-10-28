@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Собирает все пакеты iOS6Revive в ./debs.
 # Нужен Theos (переменная THEOS) с iOS-тулчейном и SDK iPhoneOS10.3.
-# IR_BUILD_NUMBER (номер сборки в CI) добавляется к версии, чтобы Cydia видела обновления.
+# Версия пакета — поле Version в его control. Чтобы выпустить новую версию, подними его.
+# Рядом с пакетами кладётся debs/sources.json: отпечатки исходников, по ним публикация
+# отличает пересборку того же кода от изменений (см. scripts/make-repo.py).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -15,9 +17,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 version_of() {
-    local base
-    base="$(sed -n 's/^Version: //p' "$1")"
-    echo "${base}${IR_BUILD_NUMBER:+-$IR_BUILD_NUMBER}"
+    sed -n 's/^Version: //p' "$1"
 }
 
 for dir in "$ROOT"/tweaks/*/; do
@@ -31,10 +31,11 @@ for dir in "$ROOT"/meta/*/; do
     echo "==> $(basename "$dir") (мета)"
     stage="$(mktemp -d)"
     mkdir -p "$stage/DEBIAN"
-    sed "s/^Version: .*/Version: $(version_of "$dir/control")/" "$dir/control" > "$stage/DEBIAN/control"
+    cp "$dir/control" "$stage/DEBIAN/control"
     id="$(sed -n 's/^Package: //p' "$dir/control")"
     dpkg-deb --root-owner-group -Zgzip -b "$stage" "$OUT/${id}_$(version_of "$dir/control")_iphoneos-arm.deb"
     rm -rf "$stage"
 done
 
+python3 "$ROOT/scripts/sources.py" > "$OUT/sources.json"
 ls -l "$OUT"

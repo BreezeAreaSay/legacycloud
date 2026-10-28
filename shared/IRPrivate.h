@@ -11,9 +11,13 @@
 - (UIView *)statusBar;
 @end
 
+@interface UIStatusBar : UIView
+- (void)forceUpdateData:(BOOL)animated;
+@end
+
 @interface UIStatusBarItemView : UIView
 - (id)contentsImageForStyle:(int)style;
-- (float)updateContentsAndWidth;
+- (BOOL)updateForNewData:(id)data actions:(int)actions;
 @end
 
 @interface UINavigationController (IRPrivate)
@@ -113,6 +117,7 @@ enum {
 @property(retain, nonatomic) NSString *name;
 @property(retain, nonatomic) NSString *identifier;
 @property(nonatomic) id target;
+@property(nonatomic) int cellType;
 + (instancetype)preferenceSpecifierNamed:(NSString *)name target:(id)target set:(SEL)set get:(SEL)get
                                   detail:(Class)detail cell:(int)cell edit:(Class)edit;
 + (instancetype)groupSpecifierWithName:(NSString *)name;
@@ -131,6 +136,7 @@ enum {
 - (void)setSpecifiers:(NSArray *)specifiers;
 - (void)reloadSpecifiers;
 - (void)reloadSpecifier:(PSSpecifier *)specifier;
+- (PSSpecifier *)specifierForID:(NSString *)identifier;
 - (BOOL)getGroup:(int *)group row:(int *)row ofSpecifierID:(NSString *)identifier;
 - (int)indexOfGroup:(int)group;
 - (NSArray *)specifiersInGroup:(int)group;

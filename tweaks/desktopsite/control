@@ -1,6 +1,6 @@
 Package: com.ios6revive.desktopsite
 Name: Полная версия сайта
-Version: 0.1.0
+Version: 0.1.1
 Architecture: iphoneos-arm
 Description: Request Desktop Site in the Safari share sheet (iOS 9)
 Maintainer: BreezeAreaSay

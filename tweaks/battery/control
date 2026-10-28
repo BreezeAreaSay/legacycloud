@@ -1,6 +1,6 @@
 Package: com.ios6revive.battery
 Name: Энергосбережение и аккумулятор
-Version: 0.1.0
+Version: 0.1.1
 Architecture: iphoneos-arm
 Description: Low Power Mode (iOS 9) and Battery Health (iOS 11.3)
 Maintainer: BreezeAreaSay

@@ -78,3 +78,6 @@ code { color: #385487; font-family: inherit; word-wrap: break-word; }
 .group a { color: inherit; text-decoration: none; display: block; }
 .group ul li { padding: 2px 0; }
 .depiction { padding-top: 14px; }
+.group > li.pkg { padding-left: 58px; min-height: 36px; position: relative; }
+.group > li.pkg img { position: absolute; left: 10px; top: 11px; width: 36px; height: 36px; border-radius: 7px; }
+.depiction .hero { padding-top: 4px; }

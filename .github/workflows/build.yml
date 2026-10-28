@@ -1,12 +1,17 @@
 name: Сборка и Cydia-репозиторий
 
+# main — исходники, gh-pages — опубликованный источник (пакеты всех версий и published.json).
+# Сборка из ветки по умолчанию дописывает новые версии в gh-pages и выкладывает её на Pages;
+# остальные сборки и пулл-реквесты только проверяют, что публикация пройдёт.
+
 on:
   push:
+    branches-ignore: [gh-pages]
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -19,6 +24,8 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       pages: ${{ steps.pages.outputs.enabled }}
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,19 +45,43 @@ jobs:
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
 
       - name: Сборка пакетов
-        env:
-          IR_BUILD_NUMBER: ${{ github.run_number }}
         run: ./build.sh
-
-      - name: Cydia-репозиторий
-        env:
-          IR_REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
-        run: python3 scripts/make-repo.py
 
       - uses: actions/upload-artifact@v4
         with:
           name: debs
           path: debs/*.deb
+
+      - name: Опубликованное из gh-pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir site && cd site
+          git init -q
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if git fetch -q --depth 1 origin gh-pages; then
+            git checkout -q -b gh-pages FETCH_HEAD
+          else
+            git symbolic-ref HEAD refs/heads/gh-pages # первая публикация: ветки ещё нет
+          fi
+
+      - name: Cydia-репозиторий
+        env:
+          IR_REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: python3 scripts/make-repo.py debs site
+
+      - name: Сохранить в gh-pages
+        if: env.PUBLISH == 'true'
+        run: |
+          cd site
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Нового нет"
+          else
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Публикация ${GITHUB_SHA::7}"
+            git push -q origin gh-pages
+          fi
 
       - name: Включены ли GitHub Pages
         id: pages
@@ -65,8 +96,9 @@ jobs:
           fi
 
       - uses: actions/upload-pages-artifact@v3
+        if: env.PUBLISH == 'true'
         with:
-          path: _site
+          path: site
 
   deploy:
     needs: build

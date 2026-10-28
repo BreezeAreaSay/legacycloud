@@ -1,6 +1,6 @@
 Package: com.ios6revive.boldtext
 Name: Жирный шрифт
-Version: 0.1.0
+Version: 0.1.1
 Architecture: iphoneos-arm
 Description: Bold Text accessibility option (iOS 7)
 Maintainer: BreezeAreaSay

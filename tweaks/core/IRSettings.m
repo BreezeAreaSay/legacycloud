@@ -75,6 +75,50 @@ static NSMutableSet *gActiveAlerts;
 }
 @end
 
+#pragma mark - Значения переключателей
+
+// «Жирный шрифт» требует перезапуска SpringBoard, поэтому спрашиваем подтверждение — как iOS 7.
+// irOwner — список, в котором стоит переключатель: при отмене возвращаем его на место.
+static void IRApplySetting(PSSpecifier *spec, id value) {
+    NSString *key = [spec propertyForKey:@"irKey"];
+    if (![key isEqualToString:kIRBoldText]) {
+        IRPrefsSet(key, value);
+        return;
+    }
+    PSListController *owner = [[spec propertyForKey:@"irOwner"] nonretainedObjectValue];
+    // Сильная ссылка намеренно: блок живёт только до закрытия алерта, а __weak-переменная
+    // на armv7 требует таблиц исключений SjLj, которых нет в заглушках SDK.
+    [IRAlertDelegate showTitle:nil
+                       message:@"Чтобы применить этот параметр, SpringBoard и все программы будут перезапущены."
+                       confirm:@"Продолжить"
+                       handler:^(BOOL confirmed) {
+                           if (!confirmed) {
+                               [owner reloadSpecifier:spec];
+                               return;
+                           }
+                           IRPrefsSet(kIRBoldText, value);
+                           notify_post(IR_NOTIFY_RESPRING);
+                       }];
+}
+
+static PSSpecifier *IRMakeSwitch(id target, PSListController *owner, NSString *name, NSString *key, BOOL fallback) {
+    PSSpecifier *spec = [PSSpecifier preferenceSpecifierNamed:name target:target set:@selector(ir_setValue:specifier:)
+                                                          get:@selector(ir_value:) detail:nil cell:PSSwitchCell edit:nil];
+    [spec setProperty:key forKey:@"irKey"];
+    [spec setProperty:@(fallback) forKey:@"irDefault"];
+    [spec setProperty:[NSValue valueWithNonretainedObject:owner] forKey:@"irOwner"];
+    return spec;
+}
+
+static PSSpecifier *IRMakeLink(id target, NSString *name, Class detail) {
+    return [PSSpecifier preferenceSpecifierNamed:name target:target set:NULL get:NULL detail:detail cell:PSLinkCell edit:nil];
+}
+
+static id IRValueFor(PSSpecifier *spec) {
+    id value = IRPrefsRead()[[spec propertyForKey:@"irKey"]];
+    return value ?: [spec propertyForKey:@"irDefault"];
+}
+
 #pragma mark - Базовый список
 
 @interface IRListController : PSListController
@@ -103,15 +147,11 @@ static NSMutableSet *gActiveAlerts;
 }
 
 - (PSSpecifier *)ir_switch:(NSString *)name key:(NSString *)key fallback:(BOOL)fallback {
-    PSSpecifier *spec = [PSSpecifier preferenceSpecifierNamed:name target:self set:@selector(ir_setValue:specifier:)
-                                                          get:@selector(ir_value:) detail:nil cell:PSSwitchCell edit:nil];
-    [spec setProperty:key forKey:@"irKey"];
-    [spec setProperty:@(fallback) forKey:@"irDefault"];
-    return spec;
+    return IRMakeSwitch(self, self, name, key, fallback);
 }
 
 - (PSSpecifier *)ir_link:(NSString *)name detail:(Class)detail {
-    return [PSSpecifier preferenceSpecifierNamed:name target:self set:NULL get:NULL detail:detail cell:PSLinkCell edit:nil];
+    return IRMakeLink(self, name, detail);
 }
 
 - (PSSpecifier *)ir_info:(NSString *)name value:(NSString *)value {
@@ -126,12 +166,11 @@ static NSMutableSet *gActiveAlerts;
 }
 
 - (id)ir_value:(PSSpecifier *)spec {
-    id value = IRPrefsRead()[[spec propertyForKey:@"irKey"]];
-    return value ?: [spec propertyForKey:@"irDefault"];
+    return IRValueFor(spec);
 }
 
 - (void)ir_setValue:(id)value specifier:(PSSpecifier *)spec {
-    IRPrefsSet([spec propertyForKey:@"irKey"], value);
+    IRApplySetting(spec, value);
 }
 
 @end
@@ -293,6 +332,179 @@ static double IRDesignCapacityForModel(void) {
 
 @end
 
+#pragma mark - Пункты в родных разделах Настроек (как в новых iOS)
+//
+// Night Shift — в «Яркость и обои», энергосбережение и состояние аккумулятора — в «Основные → Статистика»,
+// жирный шрифт — в «Универсальный доступ». Разделы узнаём по их содержимому: внутренние имена
+// разделов iOS 6 на устройстве не проверены. Если раздел не узнан, пункт остаётся только
+// на экране iOS6Revive, а экран «Разделы Настроек» показывает, что внутри у каждого раздела.
+
+#define kIRNativeSettings @"NativeSettings"
+#define IR_PANE_LOG @"settings-panes.plist"
+#define IR_NATIVE_ID @"IOS6REVIVE_NATIVE"
+
+typedef enum { IRPaneNone, IRPaneUsage, IRPaneBrightness, IRPaneAccessibility } IRPane;
+
+// Цель для встроенных переключателей: чужой список не знает наших ir_value:/ir_setValue:specifier:.
+@interface IRSettingsBridge : NSObject
+@end
+
+@implementation IRSettingsBridge
++ (instancetype)shared {
+    static IRSettingsBridge *bridge;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        bridge = [[IRSettingsBridge alloc] init];
+    });
+    return bridge;
+}
+
+- (id)ir_value:(PSSpecifier *)spec {
+    return IRValueFor(spec);
+}
+
+- (void)ir_setValue:(id)value specifier:(PSSpecifier *)spec {
+    IRApplySetting(spec, value);
+}
+@end
+
+static PSSpecifier *IRSpecifierWithKey(NSArray *specs, NSString *key) {
+    for (PSSpecifier *spec in specs)
+        if ([[spec propertyForKey:@"key"] isEqual:key])
+            return spec;
+    return nil;
+}
+
+static IRPane IRPaneOf(PSListController *controller, NSArray *specs) {
+    NSString *name = NSStringFromClass([controller class]);
+    if (IRSpecifierWithKey(specs, @"SBShowBatteryPercentage"))
+        return IRPaneUsage;
+    if (IRSpecifierWithKey(specs, @"BKEnableALS") || [name rangeOfString:@"Brightness"].location != NSNotFound)
+        return IRPaneBrightness;
+    if ([name isEqualToString:@"AccessibilitySettingsController"])
+        return IRPaneAccessibility;
+    return IRPaneNone;
+}
+
+// Конец первой группы раздела: индекс второго заголовка группы.
+static NSUInteger IREndOfFirstGroup(NSArray *specs) {
+    NSUInteger start = (specs.count && [specs[0] cellType] == PSGroupCell) ? 1 : 0;
+    for (NSUInteger i = start; i < specs.count; i++)
+        if ([specs[i] cellType] == PSGroupCell)
+            return i;
+    return specs.count;
+}
+
+// Новый массив целиком через setSpecifiers: — таблица перезагружается полностью. Построчная вставка
+// до первой загрузки таблицы может уронить Настройки на проверке числа строк.
+static void IRInsertSpecifiers(PSListController *controller, NSArray *added, NSUInteger index) {
+    NSMutableArray *specs = [IRSpecifiers(controller) mutableCopy];
+    index = MIN(index, specs.count);
+    [specs insertObjects:added atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(index, added.count)]];
+    [controller setSpecifiers:specs];
+}
+
+static void IRInjectNative(PSListController *controller) {
+    NSArray *specs = IRSpecifiers(controller);
+    if (!specs.count || [controller specifierForID:IR_NATIVE_ID] || !IRBool(IRPrefsRead(), kIRNativeSettings, YES))
+        return;
+    IRSettingsBridge *bridge = [IRSettingsBridge shared];
+    switch (IRPaneOf(controller, specs)) {
+    case IRPaneUsage: {
+        // Сразу под «Заряд в процентах», как раздел «Аккумулятор» в iOS 9
+        if (!IRFeatureInstalled(@"IRBattery"))
+            return;
+        PSSpecifier *lowPower = IRMakeSwitch(bridge, controller, @"Энергосбережение", kIRLowPower, NO);
+        lowPower.identifier = IR_NATIVE_ID;
+        PSSpecifier *health = IRMakeLink(bridge, @"Состояние аккумулятора", [IRBatteryHealthController class]);
+        NSUInteger anchor = [specs indexOfObject:IRSpecifierWithKey(specs, @"SBShowBatteryPercentage")];
+        IRInsertSpecifiers(controller, @[lowPower, health], anchor + 1);
+        break;
+    }
+    case IRPaneBrightness: {
+        // Отдельной группой под яркостью, как в iOS 10
+        if (!IRFeatureInstalled(@"IRNightShift"))
+            return;
+        PSSpecifier *group = IRGroup(nil, nil);
+        group.identifier = IR_NATIVE_ID;
+        PSSpecifier *nightShift = IRMakeLink(bridge, @"Night Shift", [IRNightShiftController class]);
+        IRInsertSpecifiers(controller, @[group, nightShift], IREndOfFirstGroup(specs));
+        break;
+    }
+    case IRPaneAccessibility: {
+        // В конец первой группы — «Зрение»
+        if (!IRFeatureInstalled(@"IRBoldText"))
+            return;
+        PSSpecifier *bold = IRMakeSwitch(bridge, controller, @"Жирный шрифт", kIRBoldText, NO);
+        bold.identifier = IR_NATIVE_ID;
+        IRInsertSpecifiers(controller, @[bold], IREndOfFirstGroup(specs));
+        break;
+    }
+    case IRPaneNone:
+        break;
+    }
+}
+
+// Журнал последних открытых разделов: класс, заголовок и строки (имя, ID, ключ настройки).
+static void IRLogPane(PSListController *controller) {
+    NSString *name = NSStringFromClass([controller class]);
+    if ([name hasPrefix:@"IR"])
+        return;
+    NSMutableArray *rows = [NSMutableArray array];
+    for (PSSpecifier *spec in IRSpecifiers(controller)) {
+        if (rows.count >= 40)
+            break;
+        [rows addObject:@{
+            @"name": spec.name ?: @"",
+            @"id": spec.identifier ?: @"",
+            @"key": [spec propertyForKey:@"key"] ?: @"",
+            @"group": @(spec.cellType == PSGroupCell),
+        }];
+    }
+    NSString *title = controller.title ?: [controller specifier].name ?: @"";
+    NSString *path = IRDataPath(IR_PANE_LOG);
+    NSMutableArray *log = [NSMutableArray arrayWithContentsOfFile:path] ?: [NSMutableArray array];
+    for (NSDictionary *entry in [log copy])
+        if ([entry[@"class"] isEqual:name])
+            [log removeObject:entry];
+    [log insertObject:@{@"class": name, @"title": title, @"rows": rows} atIndex:0];
+    while (log.count > 12)
+        [log removeLastObject];
+    [log writeToFile:path atomically:YES];
+}
+
+static void (*orig_PSListController_viewWillAppear)(PSListController *, SEL, BOOL);
+static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cmd, BOOL animated) {
+    orig_PSListController_viewWillAppear(self, _cmd, animated);
+    IRInjectNative(self);
+    IRLogPane(self);
+}
+
+@interface IRPaneLogController : IRListController
+@end
+
+@implementation IRPaneLogController
+
+- (NSMutableArray *)ir_buildSpecifiers {
+    NSMutableArray *specs = [NSMutableArray array];
+    NSArray *log = [NSArray arrayWithContentsOfFile:IRDataPath(IR_PANE_LOG)];
+    [specs addObject:IRGroup(nil, log.count
+        ? @"Последние открытые разделы Настроек и их внутреннее устройство. Если пункт iOS6Revive не появился "
+          @"в нужном разделе, открой этот раздел, вернись сюда и пришли скриншот."
+        : @"Пока пусто: открой нужные разделы Настроек и вернись сюда.")];
+    for (NSDictionary *entry in log) {
+        [specs addObject:IRGroup([NSString stringWithFormat:@"%@ · %@", entry[@"title"], entry[@"class"]], nil)];
+        for (NSDictionary *row in entry[@"rows"]) {
+            NSString *label = [row[@"group"] boolValue] ? [@"▸ " stringByAppendingString:row[@"name"]] : row[@"name"];
+            NSString *detail = [row[@"key"] length] ? row[@"key"] : row[@"id"];
+            [specs addObject:[self ir_info:label value:detail]];
+        }
+    }
+    return specs;
+}
+
+@end
+
 #pragma mark - Главный экран
 
 @interface IRRootListController : IRListController
@@ -344,28 +556,13 @@ static double IRDesignCapacityForModel(void) {
         [specs addObject:IRGroup(@"Safari", @"Чтобы открыть полную версию сайта, нажмите в Safari «Поделиться» "
                                             @"и выберите «Полная версия».")];
 
+    [specs addObject:IRGroup(nil, @"Пункты появятся и там, где они в новых iOS: Night Shift — в «Яркость и обои», "
+                                  @"энергосбережение — в «Основные → Статистика», жирный шрифт — в «Универсальный доступ».")];
+    [specs addObject:[self ir_switch:@"Пункты в разделах Настроек" key:kIRNativeSettings fallback:YES]];
+    [specs addObject:[self ir_link:@"Разделы Настроек" detail:[IRPaneLogController class]]];
+
     [specs addObject:IRGroup(nil, @"iOS6Revive — функции новых iOS в стиле iOS 6.")];
     return specs;
-}
-
-- (void)ir_setValue:(id)value specifier:(PSSpecifier *)spec {
-    if (![[spec propertyForKey:@"irKey"] isEqualToString:kIRBoldText]) {
-        [super ir_setValue:value specifier:spec];
-        return;
-    }
-    // Сильная ссылка намеренно: блок живёт только до закрытия алерта, а __weak-переменная
-    // на armv7 требует таблиц исключений SjLj, которых нет в заглушках SDK.
-    [IRAlertDelegate showTitle:nil
-                       message:@"Чтобы применить этот параметр, SpringBoard и все программы будут перезапущены."
-                       confirm:@"Продолжить"
-                       handler:^(BOOL confirmed) {
-                           if (!confirmed) {
-                               [self reloadSpecifier:spec]; // вернуть переключатель на место
-                               return;
-                           }
-                           IRPrefsSet(kIRBoldText, value);
-                           notify_post(IR_NOTIFY_RESPRING);
-                       }];
 }
 
 @end
@@ -468,5 +665,7 @@ __attribute__((constructor)) static void IRSettingsInit(void) {
     @autoreleasepool {
         IR_HOOK(objc_getClass("PrefsListController"), @selector(specifiers),
                 hook_PrefsListController_specifiers, &orig_PrefsListController_specifiers);
+        IR_HOOK(objc_getClass("PSListController"), @selector(viewWillAppear:),
+                hook_PSListController_viewWillAppear, &orig_PSListController_viewWillAppear);
     }
 }

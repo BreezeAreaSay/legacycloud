@@ -1,6 +1,6 @@
 Package: com.ios6revive.nightshift
 Name: Night Shift
-Version: 0.1.0
+Version: 0.1.1
 Architecture: iphoneos-arm
 Description: Night Shift (iOS 9.3): warm display colors on a schedule
 Maintainer: BreezeAreaSay

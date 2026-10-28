@@ -63,10 +63,24 @@ https://vdch00.github.io/iOS6Revive/
 
 ```bash
 export THEOS=~/theos
-./build.sh                     # все пакеты → debs/
-python3 scripts/make-repo.py   # Cydia-репозиторий → _site/
+./build.sh                     # все пакеты → debs/ (+ debs/sources.json — отпечатки исходников)
+python3 scripts/make-repo.py   # обновить источник в _site/ (там же может лежать рабочая копия gh-pages)
 scripts/check.sh               # быстрая проверка: компиляция под armv7 / iOS 6 и наличие всех символов в заглушках SDK
+python3 scripts/make-icons.py  # перерисовать иконки источника и пакетов
 ```
+
+## Публикация и версии
+
+Устроено по образцу [sqmrak/sqmrakdev](https://github.com/sqmrak/sqmrakdev): `main` — исходники,
+`gh-pages` — опубликованный источник. Каждый пуш в `main` собирает пакеты, дописывает новые версии
+в `gh-pages` и выкладывает её на Pages.
+
+- **Версия пакета — поле `Version` в его `control`.** Чтобы выпустить пакет, подними её.
+- `gh-pages/published.json` помнит каждую выпущенную версию: файл, sha256 и отпечаток исходников.
+  Пересборка того же кода ничего не меняет — в Cydia не бывает обновлений-пустышек.
+- Если исходники пакета изменились, а `Version` нет, сборка падает и называет пакет.
+  Код в `shared/` и `common.mk` входит во все твики, поэтому после его правки поднимай версии всем.
+- Старые версии остаются в источнике, к ним можно откатиться.
 
 ## Устройство
 
@@ -75,7 +89,8 @@ shared/          общий код (только заголовки): настр
 tweaks/core      IRCore (SpringBoard) + IRSettings (Настройки)
 tweaks/<функция> по твику на функцию, у каждого свой control и фильтр MobileSubstrate
 meta/quickwins   мета-пакет
-repo/            статичные файлы источника: страница, CydiaIcon.png
+repo/            статичные файлы источника: страница, стили, CydiaIcon.png
+icons/           иконки пакетов (scripts/make-icons.py)
 depictions/      русские описания пакетов (страница пакета в Cydia); в control — короткая строка
                  по-английски, потому что Cydia на iOS 6 превращает кириллицу в Description в «?»
 scripts/         генерация Packages/Release, иконка, проверка

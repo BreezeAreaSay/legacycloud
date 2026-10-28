@@ -20,7 +20,7 @@
 
 #define kIRControlCenter @"ControlCenter"
 
-#define kIRCCActivatorDefaults @"ControlCenterActivatorDefaults"
+#define kIRCCActivatorEvents @"ControlCenterActivatorEvents"
 #define kIRCCListener @"com.ios6revive.controlcenter"
 
 static const UIWindowLevel kIRCCWindowLevel = 1050;
@@ -749,24 +749,34 @@ static LAActivator *IRActivator(void) {
     return [objc_getClass("LAActivator") sharedInstance];
 }
 
-// Один раз ставим Пункт управления на «Свайп вверх от низа» — если жест ещё ничем не занят.
-// Флаг в настройках: если потом жест переназначат, второй раз не вмешиваемся.
-static void IRAssignDefaultGesture(void) {
-    if (IRBool(IRPrefsRead(), kIRCCActivatorDefaults, NO))
-        return;
+// Ставим Пункт управления на «Свайп вверх от низа» слева, по центру и справа — каждый жест, только
+// если он ещё ничем не занят, и каждый один раз: список уже назначенных хранится в настройках,
+// поэтому переназначенный потом жест больше не трогаем, а новые жесты по умолчанию доходят и до
+// старых установок.
+static void IRAssignDefaultGestures(void) {
     LAActivator *activator = IRActivator();
-    NSString *slide = IRActivatorConstant("LAEventNameSlideInFromBottom");
     NSString *springBoard = IRActivatorConstant("LAEventModeSpringBoard");
     NSString *application = IRActivatorConstant("LAEventModeApplication");
     Class eventClass = objc_getClass("LAEvent");
-    if (!activator || !slide || !springBoard || !application || !eventClass)
+    if (!activator || !springBoard || !application || !eventClass)
         return;
-    for (NSString *mode in @[springBoard, application]) {
-        LAEvent *event = [eventClass eventWithName:slide mode:mode];
-        if (![activator assignedListenerNameForEvent:event])
-            [activator assignEvent:event toListenerWithName:kIRCCListener];
+    NSArray *done = IRPrefsRead()[kIRCCActivatorEvents];
+    NSMutableArray *handled = [done isKindOfClass:[NSArray class]] ? [done mutableCopy] : [NSMutableArray array];
+    BOOL changed = NO;
+    for (NSString *constant in @[@"LAEventNameSlideInFromBottom", @"LAEventNameSlideInFromBottomLeft", @"LAEventNameSlideInFromBottomRight"]) {
+        NSString *name = IRActivatorConstant(constant.UTF8String);
+        if (!name || [handled containsObject:name])
+            continue;
+        for (NSString *mode in @[springBoard, application]) {
+            LAEvent *event = [eventClass eventWithName:name mode:mode];
+            if (![activator assignedListenerNameForEvent:event])
+                [activator assignEvent:event toListenerWithName:kIRCCListener];
+        }
+        [handled addObject:name];
+        changed = YES;
     }
-    IRPrefsSet(kIRCCActivatorDefaults, @YES);
+    if (changed)
+        IRPrefsSet(kIRCCActivatorEvents, handled);
 }
 
 // Кнопка «Домой» при открытой панели только закрывает её (если Activator не сделал этого раньше)
@@ -794,7 +804,7 @@ static void hook_menuButtonUp(id self, SEL _cmd, void *event) {
 static void (*orig_finishLaunching)(id, SEL, id);
 static void hook_finishLaunching(id self, SEL _cmd, id application) {
     orig_finishLaunching(self, _cmd, application);
-    IRAssignDefaultGesture();
+    IRAssignDefaultGestures();
 }
 
 static void IRCCLockStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {

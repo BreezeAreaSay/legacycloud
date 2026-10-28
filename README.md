@@ -56,7 +56,7 @@ https://vdch00.github.io/iOS6Revive/
 
 ## Сборка
 
-Нужны [Theos](https://theos.dev), iOS-тулчейн и `iPhoneOS9.3.sdk` из [theos/sdks](https://github.com/theos/sdks)
+Нужны [Theos](https://theos.dev), iOS-тулчейн и `iPhoneOS10.3.sdk` из [theos/sdks](https://github.com/theos/sdks)
 (последний SDK с 32-битными заглушками). Всё это автоматически ставит `.github/workflows/build.yml`.
 
 ```bash

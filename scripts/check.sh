@@ -3,7 +3,7 @@
 # системным clang против SDK из Theos. Ничего не линкует.
 set -euo pipefail
 : "${THEOS:?укажите путь к Theos в THEOS}"
-SDK="${SDK:-$THEOS/sdks/iPhoneOS9.3.sdk}"
+SDK="${SDK:-$THEOS/sdks/iPhoneOS10.3.sdk}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT

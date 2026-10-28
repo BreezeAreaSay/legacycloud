@@ -27,14 +27,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential fakeroot rsync curl perl zip git libxml2 libtinfo6
 
-      - name: Theos, iOS-тулчейн и SDK 9.3 (последний с armv7)
+      - name: Theos, iOS-тулчейн и SDK 10.3 (последний с armv7)
         run: |
           git clone --recursive --depth 1 --shallow-submodules https://github.com/theos/theos.git "$HOME/theos"
           curl -fsSL https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-x86_64.tar.xz \
             | tar -xJ -C "$HOME/theos/toolchain"
           git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
-          git -C /tmp/sdks sparse-checkout set iPhoneOS9.3.sdk
-          mv /tmp/sdks/iPhoneOS9.3.sdk "$HOME/theos/sdks/"
+          git -C /tmp/sdks sparse-checkout set iPhoneOS10.3.sdk
+          mv /tmp/sdks/iPhoneOS10.3.sdk "$HOME/theos/sdks/"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
 
       - name: Сборка пакетов

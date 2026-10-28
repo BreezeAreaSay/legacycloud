@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Собирает все пакеты iOS6Revive в ./debs.
-# Нужен Theos (переменная THEOS) с iOS-тулчейном и SDK iPhoneOS9.3.
+# Нужен Theos (переменная THEOS) с iOS-тулчейном и SDK iPhoneOS10.3.
 # IR_BUILD_NUMBER (номер сборки в CI) добавляется к версии, чтобы Cydia видела обновления.
 set -euo pipefail
 

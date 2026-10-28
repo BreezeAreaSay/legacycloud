@@ -1,9 +1,9 @@
 Package: com.ios6revive.keyboardcursor
 Name: Курсор свайпом по пробелу
-Version: 0.2.0
+Version: 0.2.1
 Architecture: iphoneos-arm
 Description: Move the text cursor by swiping on the space bar (iOS 12)
-Maintainer: BreezeAreaSay
-Author: BreezeAreaSay
+Maintainer: SmokinInTheWoods
+Author: SmokinInTheWoods
 Section: iOS6Revive
 Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.3)

@@ -1,9 +1,9 @@
 Package: com.ios6revive.core
 Name: iOS6Revive
-Version: 0.1.3
+Version: 0.1.4
 Architecture: iphoneos-arm
 Description: iOS6Revive core: Settings pane and shared services
-Maintainer: BreezeAreaSay
-Author: BreezeAreaSay
+Maintainer: SmokinInTheWoods
+Author: SmokinInTheWoods
 Section: iOS6Revive
 Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0)

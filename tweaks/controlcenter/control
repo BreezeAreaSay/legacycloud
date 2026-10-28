@@ -1,0 +1,9 @@
+Package: com.ios6revive.controlcenter
+Name: Пункт управления
+Version: 0.2.0
+Architecture: iphoneos-arm
+Description: Control Center (iOS 7) in iOS 6 style: swipe up from the bottom edge
+Maintainer: BreezeAreaSay
+Author: BreezeAreaSay
+Section: iOS6Revive
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.2)

@@ -17,7 +17,7 @@ for file in "$ROOT"/tweaks/*/*.m; do
     if clang -target armv7-apple-ios6.0 -isysroot "$SDK" -fobjc-arc -fsjlj-exceptions \
         -Wall -Wextra -Wno-unused-parameter -Werror \
         -I"$ROOT/shared" -I"$THEOS/vendor/include" -F"$THEOS/vendor/lib" \
-        -c "$file" -o "$OUT/$(basename "$file").o"; then
+        -c "$file" -o "$OUT/$(basename "$(dirname "$file")")__$(basename "$file").o"; then
         echo "ok   ${file#$ROOT/}"
     else
         echo "FAIL ${file#$ROOT/}"

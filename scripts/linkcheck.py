@@ -66,16 +66,25 @@ def main() -> int:
             exported |= tbd_exports(tbd)
 
     nm = nm_tool()
-    status = 0
+    # Объекты одного твика линкуются вместе: имя файла «твик__файл.o», символы соседей не считаем внешними
+    groups = {}
     for obj in objects:
-        undefined = subprocess.run([nm, "-u", obj], check=True, capture_output=True, text=True).stdout.split()
-        # ___divsi3 и подобные приходят из статической libclang_rt, а не из .tbd
-        missing = [s for s in undefined if s not in exported and not re.match(r"^___(div|mod|udiv|umod)\w*si3$", s)]
-        if missing:
-            status = 1
-            print(f"FAIL {Path(obj).name}: нет в заглушках для {ARCH}: {', '.join(sorted(missing))}")
-        else:
-            print(f"ok   {Path(obj).name}")
+        groups.setdefault(Path(obj).name.split("__")[0], []).append(obj)
+    status = 0
+    for group, members in sorted(groups.items()):
+        defined = set()
+        for obj in members:
+            defined |= set(subprocess.run([nm, "--defined-only", "-j", obj], check=True, capture_output=True, text=True).stdout.split())
+        for obj in members:
+            undefined = subprocess.run([nm, "-u", obj], check=True, capture_output=True, text=True).stdout.split()
+            # ___divsi3 и подобные приходят из статической libclang_rt, а не из .tbd
+            missing = [s for s in undefined if s not in exported and s not in defined
+                       and not re.match(r"^___(div|mod|udiv|umod)\w*si3$", s)]
+            if missing:
+                status = 1
+                print(f"FAIL {Path(obj).name}: нет в заглушках для {ARCH}: {', '.join(sorted(missing))}")
+            else:
+                print(f"ok   {Path(obj).name}")
     return status
 
 

@@ -525,6 +525,12 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
         [specs addObject:[self ir_switch:@"Смахивание назад" key:kIRSwipeBack fallback:YES]];
     }
 
+    if (IRFeatureInstalled(@"IRControlCenter")) {
+        [specs addObject:IRGroup(nil, @"Проведите вверх от нижнего края экрана, чтобы открыть Пункт управления. "
+                                      @"На экране блокировки он не открывается.")];
+        [specs addObject:[self ir_switch:@"Пункт управления" key:@"ControlCenter" fallback:YES]];
+    }
+
     if (IRFeatureInstalled(@"IRBattery")) {
         [specs addObject:IRGroup(nil, @"Режим энергосбережения временно снижает расход энергии, пока iPhone не будет заряжен: "
                                       @"экран становится темнее, а автоблокировка срабатывает через минуту. "

@@ -89,6 +89,13 @@ def glyph_monitor(d):
     d.rounded_rectangle([p(9, 22), p(20, 24)], radius=1 * U, fill=WHITE)
 
 
+def glyph_controls(d):
+    # Два ползунка, как в Пункте управления
+    for y, knob in ((9, 16), (17, 9)):
+        d.rounded_rectangle([p(4, y - 1.2), p(25, y + 1.2)], radius=1.2 * U, fill=WHITE)
+        d.ellipse([p(knob - 3.2, y - 3.2), p(knob + 3.2, y + 3.2)], fill=WHITE)
+
+
 def glyph_bolt(d):
     d.polygon([p(16.5, 3.5), p(7.5, 16), p(13.5, 16), p(11.5, 25.5), p(21.5, 12.5), p(15.5, 12.5)], fill=WHITE)
 
@@ -102,6 +109,7 @@ ICONS = {
     "icons/com.ios6revive.newappdot.png": ((110, 181, 255), (33, 99, 214), glyph_new_app),
     "icons/com.ios6revive.boldtext.png": ((166, 173, 183), (90, 99, 112), glyph_bold),
     "icons/com.ios6revive.desktopsite.png": ((100, 205, 250), (24, 116, 222), glyph_monitor),
+    "icons/com.ios6revive.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
     "icons/com.ios6revive.quickwins.png": ((255, 176, 70), (232, 98, 18), glyph_bolt),
 }
 

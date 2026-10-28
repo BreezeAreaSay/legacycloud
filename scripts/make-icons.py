@@ -105,6 +105,16 @@ def glyph_cursor(d):
     d.polygon([p(26, 14.5), p(20, 10), p(20, 19)], fill=WHITE)
 
 
+def glyph_markup(d):
+    # Уголки кадра скриншота и карандаш наискосок
+    w = round(1.8 * U)
+    for x0, y0, dx, dy in ((5, 5, 1, 1), (24, 5, -1, 1), (5, 24, 1, -1), (24, 24, -1, -1)):
+        d.line([p(x0, y0), p(x0 + 5 * dx, y0)], fill=WHITE, width=w)
+        d.line([p(x0, y0), p(x0, y0 + 5 * dy)], fill=WHITE, width=w)
+    d.polygon([p(10.5, 17), p(17, 10.5), p(19, 12.5), p(12.5, 19)], fill=WHITE)
+    d.polygon([p(10, 17.5), p(12, 19.5), p(8.5, 21)], fill=WHITE)
+
+
 def glyph_bolt(d):
     d.polygon([p(16.5, 3.5), p(7.5, 16), p(13.5, 16), p(11.5, 25.5), p(21.5, 12.5), p(15.5, 12.5)], fill=WHITE)
 
@@ -120,6 +130,7 @@ ICONS = {
     "icons/com.ios6revive.desktopsite.png": ((100, 205, 250), (24, 116, 222), glyph_monitor),
     "icons/com.ios6revive.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
     "icons/com.ios6revive.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
+    "icons/com.ios6revive.screenshot.png": ((196, 150, 245), (112, 62, 190), glyph_markup),
     "icons/com.ios6revive.quickwins.png": ((255, 176, 70), (232, 98, 18), glyph_bolt),
 }
 

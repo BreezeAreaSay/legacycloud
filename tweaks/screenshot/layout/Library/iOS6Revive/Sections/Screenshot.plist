@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>order</key>
+	<integer>30</integer>
+	<key>footer</key>
+	<string>После снимка экрана он уменьшается в левый нижний угол. Нажмите на превью, чтобы сделать пометки, или смахните его влево. Пока превью на экране, снимок можно удалить, не сохраняя в «Фото».</string>
+	<key>cells</key>
+	<array>
+		<dict>
+			<key>title</key>
+			<string>Превью скриншота</string>
+			<key>key</key>
+			<string>ScreenshotPreview</string>
+			<key>default</key>
+			<true/>
+		</dict>
+	</array>
+</dict>
+</plist>

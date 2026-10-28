@@ -21,6 +21,7 @@
 | `com.ios6revive.boldtext` — Жирный шрифт | iOS 7 | Системный шрифт и Helvetica на ступень жирнее во всех программах |
 | `com.ios6revive.desktopsite` — Полная версия сайта | iOS 9 | Пункт «Полная версия» в родном меню «Поделиться» Safari |
 | `com.ios6revive.controlcenter` — Пункт управления | iOS 7 | Свайп вверх от нижнего края: тёмный лён, круглые глянцевые переключатели, родные ползунки яркости и громкости, музыка, фонарик |
+| `com.ios6revive.keyboardcursor` — Курсор свайпом по пробелу | iOS 12 | Ведите по пробелу — курсор едет по буквам и строкам; от Shift — выделение |
 | `com.ios6revive.core` | — | Пункт **Настройки → iOS6Revive** и общие службы; ставится автоматически |
 | `com.ios6revive.quickwins` | — | Мета-пакет: всё перечисленное одной установкой |
 
@@ -102,6 +103,10 @@ scripts/         генерация Packages/Release, иконка, провер
 Настройки и SpringBoard пишут его и шлют Darwin-уведомление `com.ios6revive/prefs-changed`. SpringBoard
 публикует короткую битовую маску в состоянии уведомления `com.ios6revive/state`: программы из App Store
 живут в песочнице и могут не прочитать plist, поэтому берут флаги оттуда.
+
+**Разделы настроек из пакетов.** Пакет может положить `/Library/iOS6Revive/Sections/<имя>.plist`
+(`order`, `title`, `footer`, `cells = ({ title, key, default })`), и его переключатели появятся в
+Настройки → iOS6Revive без обновления ядра. Так сделан курсор: `tweaks/keyboardcursor/layout/`.
 
 **Код.** Чистый Objective-C с `MSHookMessageEx`, без Logos. Так каждый файл проверяется обычным clang,
 а все приватные классы берутся через `objc_getClass` и вызываются после `respondsToSelector:`:

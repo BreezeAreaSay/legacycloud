@@ -96,6 +96,15 @@ def glyph_controls(d):
         d.ellipse([p(knob - 3.2, y - 3.2), p(knob + 3.2, y + 3.2)], fill=WHITE)
 
 
+def glyph_cursor(d):
+    # Текстовый курсор и стрелки по бокам
+    d.rectangle([p(13.6, 5), p(15.4, 24)], fill=WHITE)
+    d.rectangle([p(11, 4), p(18, 5.6)], fill=WHITE)
+    d.rectangle([p(11, 23.4), p(18, 25)], fill=WHITE)
+    d.polygon([p(3, 14.5), p(9, 10), p(9, 19)], fill=WHITE)
+    d.polygon([p(26, 14.5), p(20, 10), p(20, 19)], fill=WHITE)
+
+
 def glyph_bolt(d):
     d.polygon([p(16.5, 3.5), p(7.5, 16), p(13.5, 16), p(11.5, 25.5), p(21.5, 12.5), p(15.5, 12.5)], fill=WHITE)
 
@@ -110,6 +119,7 @@ ICONS = {
     "icons/com.ios6revive.boldtext.png": ((166, 173, 183), (90, 99, 112), glyph_bold),
     "icons/com.ios6revive.desktopsite.png": ((100, 205, 250), (24, 116, 222), glyph_monitor),
     "icons/com.ios6revive.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
+    "icons/com.ios6revive.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
     "icons/com.ios6revive.quickwins.png": ((255, 176, 70), (232, 98, 18), glyph_bolt),
 }
 

@@ -340,6 +340,7 @@ static double IRDesignCapacityForModel(void) {
 // на экране iOS6Revive, а экран «Разделы Настроек» показывает, что внутри у каждого раздела.
 
 #define kIRNativeSettings @"NativeSettings"
+#define IR_SECTIONS_DIR @"/Library/iOS6Revive/Sections"
 #define IR_PANE_LOG @"settings-panes.plist"
 #define IR_NATIVE_ID @"IOS6REVIVE_NATIVE"
 
@@ -561,6 +562,25 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
     if (IRFeatureInstalled(@"IRDesktopSite"))
         [specs addObject:IRGroup(@"Safari", @"Чтобы открыть полную версию сайта, нажмите в Safari «Поделиться» "
                                             @"и выберите «Полная версия».")];
+
+    // Разделы, которые приносят сами пакеты: /Library/iOS6Revive/Sections/*.plist
+    // { order, title?, footer?, cells = ({ title, key, default }) } — ядро не нужно обновлять ради новой функции
+    NSMutableArray *sections = [NSMutableArray array];
+    for (NSString *file in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:IR_SECTIONS_DIR error:NULL]) {
+        NSDictionary *section = [file.pathExtension isEqualToString:@"plist"]
+            ? [NSDictionary dictionaryWithContentsOfFile:[IR_SECTIONS_DIR stringByAppendingPathComponent:file]] : nil;
+        if ([section isKindOfClass:[NSDictionary class]])
+            [sections addObject:section];
+    }
+    [sections sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        return [@([a[@"order"] intValue]) compare:@([b[@"order"] intValue])];
+    }];
+    for (NSDictionary *section in sections) {
+        [specs addObject:IRGroup(section[@"title"], section[@"footer"])];
+        for (NSDictionary *cell in section[@"cells"])
+            if ([cell[@"title"] isKindOfClass:[NSString class]] && [cell[@"key"] isKindOfClass:[NSString class]])
+                [specs addObject:[self ir_switch:cell[@"title"] key:cell[@"key"] fallback:[cell[@"default"] boolValue]]];
+    }
 
     [specs addObject:IRGroup(nil, @"Пункты появятся и там, где они в новых iOS: Night Shift — в «Яркость и обои», "
                                   @"энергосбережение — в «Основные → Статистика», жирный шрифт — в «Универсальный доступ».")];

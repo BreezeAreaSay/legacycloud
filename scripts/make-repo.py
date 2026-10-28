@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEBS = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "debs"
 SITE = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "_site"
 REPO_URL = os.environ.get("IR_REPO_URL", "").rstrip("/")
-GENERATED = ["Packages", "Packages.gz", "Packages.bz2", "Release", "depictions"]
+GENERATED = ["Packages", "Packages.gz", "Packages.bz2", "depictions"]  # Release пишется отдельно
 
 RELEASE_HEADER = """Origin: iOS6Revive
 Label: iOS6Revive
@@ -248,11 +248,16 @@ def main() -> None:
     for name, data in indexes.items():
         (SITE / name).write_bytes(data)
 
-    release = [RELEASE_HEADER.rstrip("\n"), f"Date: {formatdate(usegmt=True)}"]
+    checksums = []
     for title, algorithm in (("MD5Sum", hashlib.md5), ("SHA1", hashlib.sha1), ("SHA256", hashlib.sha256)):
-        release.append(f"{title}:")
-        release += [f" {algorithm(data).hexdigest()} {len(data)} {name}" for name, data in indexes.items()]
-    (SITE / "Release").write_text("\n".join(release) + "\n")
+        checksums.append(f"{title}:")
+        checksums += [f" {algorithm(data).hexdigest()} {len(data)} {name}" for name, data in indexes.items()]
+    # Дату меняем, только когда меняются индексы: иначе каждая сборка давала бы коммит в gh-pages
+    release_path = SITE / "Release"
+    old_release = release_path.read_text() if release_path.exists() else ""
+    if old_release.split("\nDate: ")[0] != RELEASE_HEADER.rstrip("\n") or not old_release.endswith("\n".join(checksums) + "\n"):
+        release = [RELEASE_HEADER.rstrip("\n"), f"Date: {formatdate(usegmt=True)}"] + checksums
+        release_path.write_text("\n".join(release) + "\n")
 
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
     print(f"{sum(len(v) for v in manifest.values())} версий {len(manifest)} пакетов → {SITE}")

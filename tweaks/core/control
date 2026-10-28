@@ -1,0 +1,9 @@
+Package: com.ios6revive.core
+Name: iOS6Revive
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Ядро iOS6Revive: пункт «iOS6Revive» в Настройках и общие службы для остальных пакетов.
+Maintainer: BreezeAreaSay
+Author: BreezeAreaSay
+Section: iOS6Revive
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0)

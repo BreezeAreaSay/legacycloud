@@ -1,0 +1,7 @@
+.theos/
+packages/
+obj/
+debs/
+_site/
+.DS_Store
+__pycache__/

@@ -1,0 +1,78 @@
+name: Сборка и Cydia-репозиторий
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      pages: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Зависимости Theos
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential fakeroot rsync curl perl zip git libxml2 libtinfo6
+
+      - name: Theos, iOS-тулчейн и SDK 9.3 (последний с armv7)
+        run: |
+          git clone --recursive --depth 1 --shallow-submodules https://github.com/theos/theos.git "$HOME/theos"
+          curl -fsSL https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-x86_64.tar.xz \
+            | tar -xJ -C "$HOME/theos/toolchain"
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git /tmp/sdks
+          git -C /tmp/sdks sparse-checkout set iPhoneOS9.3.sdk
+          mv /tmp/sdks/iPhoneOS9.3.sdk "$HOME/theos/sdks/"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: Сборка пакетов
+        env:
+          IR_BUILD_NUMBER: ${{ github.run_number }}
+        run: ./build.sh
+
+      - name: Cydia-репозиторий
+        run: python3 scripts/make-repo.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: debs/*.deb
+
+      - name: Включены ли GitHub Pages
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" --silent; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages не включены: Settings → Pages → Source: GitHub Actions"
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && needs.build.outputs.pages == 'true' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,9 @@
+Package: com.ios6revive.desktopsite
+Name: Полная версия сайта
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Пункт «Полная версия» в меню «Поделиться» Safari, как в iOS 9.
+Maintainer: BreezeAreaSay
+Author: BreezeAreaSay
+Section: iOS6Revive
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.0)

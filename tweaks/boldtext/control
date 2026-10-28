@@ -1,0 +1,9 @@
+Package: com.ios6revive.boldtext
+Name: Жирный шрифт
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Параметр «Жирный шрифт» из iOS 7: системный шрифт становится жирнее во всех программах.
+Maintainer: BreezeAreaSay
+Author: BreezeAreaSay
+Section: iOS6Revive
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.0)

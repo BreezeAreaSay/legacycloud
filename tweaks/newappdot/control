@@ -1,0 +1,9 @@
+Package: com.ios6revive.newappdot
+Name: Метки новых программ
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Глянцевая синяя точка у названия только что установленной программы, как в iOS 7.
+Maintainer: BreezeAreaSay
+Author: BreezeAreaSay
+Section: iOS6Revive
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.0)

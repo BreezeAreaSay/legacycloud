@@ -1,0 +1,9 @@
+Package: com.ios6revive.quickwins
+Name: iOS6Revive: быстрые победы
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Все функции первого этапа одним пакетом: смахивание назад, энергосбережение, состояние аккумулятора, Night Shift, метки новых программ, жирный шрифт и полная версия сайта.
+Maintainer: BreezeAreaSay
+Author: BreezeAreaSay
+Section: iOS6Revive
+Depends: com.ios6revive.swipeback, com.ios6revive.battery, com.ios6revive.nightshift, com.ios6revive.newappdot, com.ios6revive.boldtext, com.ios6revive.desktopsite

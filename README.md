@@ -39,12 +39,12 @@
 После того как сработает GitHub Actions (см. ниже), добавь в Cydia источник:
 
 ```
-https://breezeareasay.github.io/legacycloud/
+https://vdch00.github.io/iOS6Revive/
 ```
 
 На странице источника есть кнопка «Добавить в Cydia». GitHub Pages работает только по HTTPS. Если Cydia
 на iOS 6 не сможет подключиться, скачай `.deb` из артефактов сборки (вкладка Actions) или из
-`https://breezeareasay.github.io/legacycloud/debs/` и установи вручную.
+`https://vdch00.github.io/iOS6Revive/debs/` и установи вручную.
 
 ### Включить публикацию (один раз)
 1. На бесплатном тарифе GitHub Pages работают только у **публичных** репозиториев:

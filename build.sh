@@ -7,6 +7,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 : "${THEOS:?укажите путь к Theos в переменной THEOS}"
 OUT="$ROOT/debs"
+
+# Заглушки theos/sdks потеряли 32-битные символы рантайма — возвращаем их (повторно ничего не меняет)
+python3 "$ROOT/scripts/fix-sdk.py" "$THEOS/sdks/iPhoneOS10.3.sdk"
+
 rm -rf "$OUT"
 mkdir -p "$OUT"
 

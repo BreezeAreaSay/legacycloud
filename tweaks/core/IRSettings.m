@@ -353,13 +353,14 @@ static double IRDesignCapacityForModel(void) {
         [super ir_setValue:value specifier:spec];
         return;
     }
-    __weak IRRootListController *weakSelf = self;
+    // Сильная ссылка намеренно: блок живёт только до закрытия алерта, а __weak-переменная
+    // на armv7 требует таблиц исключений SjLj, которых нет в заглушках SDK.
     [IRAlertDelegate showTitle:nil
                        message:@"Чтобы применить этот параметр, SpringBoard и все программы будут перезапущены."
                        confirm:@"Продолжить"
                        handler:^(BOOL confirmed) {
                            if (!confirmed) {
-                               [weakSelf reloadSpecifier:spec]; // вернуть переключатель на место
+                               [self reloadSpecifier:spec]; // вернуть переключатель на место
                                return;
                            }
                            IRPrefsSet(kIRBoldText, value);

@@ -58,12 +58,14 @@ https://vdch00.github.io/iOS6Revive/
 
 Нужны [Theos](https://theos.dev), iOS-тулчейн и `iPhoneOS10.3.sdk` из [theos/sdks](https://github.com/theos/sdks)
 (последний SDK с 32-битными заглушками). Всё это автоматически ставит `.github/workflows/build.yml`.
+`scripts/fix-sdk.py` возвращает в заглушки libobjc символы `objc_msgSend*_stret`, которые есть только
+у 32-битного рантайма: `build.sh` и `check.sh` вызывают его сами.
 
 ```bash
 export THEOS=~/theos
 ./build.sh                     # все пакеты → debs/
 python3 scripts/make-repo.py   # Cydia-репозиторий → _site/
-scripts/check.sh               # быстрая проверка: компиляция под armv7 / iOS 6 системным clang, без линковки
+scripts/check.sh               # быстрая проверка: компиляция под armv7 / iOS 6 и наличие всех символов в заглушках SDK
 ```
 
 ## Устройство

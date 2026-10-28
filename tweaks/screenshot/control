@@ -1,6 +1,6 @@
 Package: com.ios6revive.screenshot
 Name: Превью скриншота
-Version: 0.2.0
+Version: 0.2.1
 Architecture: iphoneos-arm
 Description: Screenshot thumbnail in the corner with markup (iOS 11)
 Maintainer: SmokinInTheWoods

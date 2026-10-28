@@ -2,24 +2,28 @@
 // фотографией в белой рамке. Нажатие открывает разметку, свайп влево убирает превью, само оно
 // уходит через 5 секунд.
 //
-// Как в iOS 11, пока превью на экране, снимка ещё нет в «Фото». SpringBoard пишет снимок через
-// UIImageWriteToSavedPhotosAlbum с собой (SBScreenShotter) в качестве адресата: этот вызов мы
-// перехватываем и держим картинку у себя, а SpringBoard сразу отвечаем, что запись прошла.
-// Когда превью уходит, снимок записывается как есть; после разметки — с пометками;
-// «Удалить скриншот» не записывает ничего.
+// Как в iOS 11, пока превью на экране, снимка ещё нет в «Фото». После -[SBScreenShotter saveScreenshot:]
+// SpringBoard пишет снимок через UIImageWriteToSavedPhotosAlbum: этот вызов (в течение 3 секунд после
+// снимка или с SBScreenShotter в адресатах, из любого потока) мы перехватываем и держим картинку у себя,
+// а SpringBoard сразу отвечаем, что запись прошла. Когда превью уходит, снимок записывается как есть;
+// после разметки — с пометками; «Удалить скриншот» не записывает ничего. Страховка: снимок, который
+// почему-то задержался у нас дольше 20 секунд, записывается в любом случае.
 //
-// Запасной путь: если SpringBoard запишет снимок как-то иначе, превью появится после записи
-// (finishedWritingScreenshot:…), а разметка сохранится копией.
+// Запасные пути, если SpringBoard пишет снимок как-то иначе: превью после finishedWritingScreenshot:…,
+// а если и его нет — через 1,5 секунды превью из нашей собственной копии экрана, снятой в момент снимка.
+// В обоих случаях снимок уже в «Фото», и разметка сохраняется копией.
 
 #import "IRShared.h"
 #import "IRMarkup.h"
 #import <QuartzCore/QuartzCore.h>
+#include <dlfcn.h>
 
 #define kIRScreenshot @"ScreenshotPreview"
 
 static const UIWindowLevel kIRShotThumbnailLevel = 1060;
 static const UIWindowLevel kIRShotEditorLevel = 1061;
 static const NSTimeInterval kIRShotLifetime = 5;
+static const NSTimeInterval kIRShotWatchdog = 20;
 
 @interface UIApplication (IRScreenshot)
 - (int)activeInterfaceOrientation;
@@ -119,6 +123,8 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     _image = image;
     _held = held;
     NSUInteger generation = ++_generation;
+    if (held)
+        [self performSelector:@selector(watchdog:) withObject:image afterDelay:kIRShotWatchdog];
 
     _thumbWindow = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
     _thumbWindow.windowLevel = kIRShotThumbnailLevel;
@@ -148,6 +154,15 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     } completion:^(BOOL finished) {
         [[IRShotController shared] thumbnailLanded:generation];
     }];
+}
+
+// Снимок не должен потеряться, даже если превью почему-то не показалось или застряло
+- (void)watchdog:(UIImage *)image {
+    if (image != _image || !_held || _editorWindow)
+        return;
+    IRLog(@"превью скриншота: снимок задержался, записываю");
+    IRSaveToPhotos(_image);
+    _held = NO;
 }
 
 - (void)thumbnailLanded:(NSUInteger)generation {
@@ -303,38 +318,79 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
 
 #pragma mark - SpringBoard
 
+// Последний снимок экрана: когда сделан, показано ли уже его превью и наша копия экрана на крайний случай
+static CFAbsoluteTime gShotTime;
+static BOOL gShotHandled;
+static UIImage *gShotFallback;
 // Наш собственный ответ SpringBoard «снимок записан» — его превью уже показано
 static BOOL gAnsweringShotter;
 
-static void hook_UIImageWrite(UIImage *image, id target, SEL selector, void *context) {
-    IRShotController *controller = [IRShotController shared];
+static BOOL IRShotExpected(id target) {
     Class shotter = objc_getClass("SBScreenShotter");
-    if (!image || !shotter || ![target isKindOfClass:shotter] || ![NSThread isMainThread] || controller.editing || !IRShotEnabled()) {
+    BOOL recent = gShotTime > 0 && CFAbsoluteTimeGetCurrent() - gShotTime < 3;
+    return !gShotHandled && (recent || (shotter && [target isKindOfClass:shotter]));
+}
+
+static void IRShotPresent(UIImage *image, BOOL held) {
+    gShotHandled = YES;
+    gShotFallback = nil;
+    IRShotController *controller = [IRShotController shared];
+    if (controller.editing) {
+        if (held)
+            IRSaveToPhotos(image);
+        return;
+    }
+    [controller presentImage:image held:held];
+}
+
+// Своя копия экрана: _UICreateScreenUIImage(WithRotation) в UIKit iOS 6, иначе UIGetScreenImage
+static UIImage *IRCaptureScreen(void) {
+    void *(*withRotation)(BOOL) = (void *(*)(BOOL))dlsym(RTLD_DEFAULT, "_UICreateScreenUIImageWithRotation");
+    if (withRotation)
+        return CFBridgingRelease(withRotation(YES));
+    void *(*plain)(void) = (void *(*)(void))dlsym(RTLD_DEFAULT, "_UICreateScreenUIImage");
+    if (plain)
+        return CFBridgingRelease(plain());
+    CGImageRef (*legacy)(void) = (CGImageRef (*)(void))dlsym(RTLD_DEFAULT, "UIGetScreenImage");
+    CGImageRef cgImage = legacy ? legacy() : NULL;
+    if (!cgImage)
+        return nil;
+    UIImage *image = [UIImage imageWithCGImage:cgImage scale:[UIScreen mainScreen].scale orientation:UIImageOrientationUp];
+    CGImageRelease(cgImage);
+    return image;
+}
+
+static void hook_UIImageWrite(UIImage *image, id target, SEL selector, void *context) {
+    if (!image || !IRShotEnabled() || !IRShotExpected(target)) {
         orig_UIImageWrite(image, target, selector, context);
         return;
     }
-    [controller presentImage:image held:YES];
-    // SpringBoard ждёт ответа, чтобы разрешить следующий снимок: отвечаем, как будто запись прошла
-    if (selector && [target respondsToSelector:selector]) {
-        dispatch_async(dispatch_get_main_queue(), ^{
+    gShotHandled = YES;
+    IRLog(@"превью скриншота: снимок перехвачен (адресат %@)", target ? NSStringFromClass([target class]) : @"нет");
+    dispatch_async(dispatch_get_main_queue(), ^{
+        IRShotPresent(image, YES);
+        // SpringBoard ждёт ответа, чтобы разрешить следующий снимок: отвечаем, как будто запись прошла
+        if (selector && [target respondsToSelector:selector]) {
             gAnsweringShotter = YES;
             ((void (*)(id, SEL, UIImage *, NSError *, void *))objc_msgSend)(target, selector, image, nil, context);
             gAnsweringShotter = NO;
-        });
-    }
+        }
+    });
 }
 
 static void (*orig_finishedWriting)(id, SEL, UIImage *, NSError *, void *);
 static void hook_finishedWriting(id self, SEL _cmd, UIImage *image, NSError *error, void *context) {
     orig_finishedWriting(self, _cmd, image, error, context);
-    if (gAnsweringShotter || error || ![image isKindOfClass:[UIImage class]] || !IRShotEnabled())
+    if (gAnsweringShotter || gShotHandled || error || ![image isKindOfClass:[UIImage class]] || !IRShotEnabled())
         return;
-    IRShotController *controller = [IRShotController shared];
-    if (!controller.editing)
-        [controller presentImage:image held:NO];
+    IRLog(@"превью скриншота: снимок записан SpringBoard, показываю после записи");
+    gShotHandled = YES;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        IRShotPresent(image, NO);
+    });
 }
 
-// Перед новым снимком убираем старое превью, чтобы оно не попало в кадр
+// Перед новым снимком убираем старое превью, чтобы оно не попало в кадр, и снимаем свою копию экрана
 static void (*orig_saveScreenshot)(id, SEL, BOOL);
 static void hook_saveScreenshot(id self, SEL _cmd, BOOL flash) {
     IRShotController *controller = [IRShotController shared];
@@ -342,7 +398,20 @@ static void hook_saveScreenshot(id self, SEL _cmd, BOOL flash) {
         [controller removeThumbnail];
         [CATransaction flush];
     }
+    BOOL enabled = IRShotEnabled() && !controller.editing;
+    gShotTime = CFAbsoluteTimeGetCurrent();
+    gShotHandled = NO;
+    gShotFallback = enabled ? IRCaptureScreen() : nil;
     orig_saveScreenshot(self, _cmd, flash);
+    if (!enabled)
+        return;
+    CFAbsoluteTime shot = gShotTime;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1500 * (int64_t)NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+        if (gShotTime != shot || gShotHandled || !gShotFallback)
+            return;
+        IRLog(@"превью скриншота: SpringBoard записал снимок мимо перехвата, показываю свою копию");
+        IRShotPresent(gShotFallback, NO);
+    });
 }
 
 // «Домой» на экране разметки закрывает её и сохраняет снимок с пометками

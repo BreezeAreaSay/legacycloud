@@ -1,6 +1,6 @@
 Package: com.ios6revive.controlcenter
 Name: Пункт управления
-Version: 0.2.1
+Version: 0.2.2
 Architecture: iphoneos-arm
 Description: Control Center (iOS 7) in iOS 6 style: swipe up from the bottom edge
 Maintainer: SmokinInTheWoods

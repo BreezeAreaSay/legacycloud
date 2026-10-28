@@ -6,6 +6,10 @@
 // Жест: в SpringBoard iOS 6 нет открытого способа добавить свой системный жест, поэтому, как
 // Activator, держим у нижнего края тонкое прозрачное окно SpringBoard поверх программ.
 // На экране блокировки окна нет — там внизу слайдер и камера.
+//
+// Блокировку не берём из одного уведомления: при разблокировке SpringBoard iOS 6 шлёт
+// com.apple.springboard.lockstate, пока -[SBAwayController isLocked] ещё отвечает YES (идёт анимация).
+// Поэтому перепроверяем позже, при смене программы на экране и в самом начале жеста.
 
 #import "IRShared.h"
 #import "IRPrivate.h"
@@ -17,7 +21,7 @@
 
 #define kIRControlCenter @"ControlCenter"
 
-static const CGFloat kIRCCEdgeHeight = 6;
+static const CGFloat kIRCCEdgeHeight = 8;
 static const CGFloat kIRCCPanelHeight = 318;
 static const UIWindowLevel kIRCCWindowLevel = 1050;
 
@@ -422,6 +426,11 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
 
 #pragma mark - Контроллер
 
+static BOOL IRCCLocked(void) {
+    SBAwayController *away = [objc_getClass("SBAwayController") sharedAwayController];
+    return [away respondsToSelector:@selector(isLocked)] && [away isLocked];
+}
+
 @interface IRCCController : NSObject <UIGestureRecognizerDelegate>
 + (instancetype)shared;
 - (void)updateEdge;
@@ -453,8 +462,7 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
 
 - (void)updateEdge {
     BOOL enabled = IRBool(IRPrefsRead(), kIRControlCenter, YES);
-    SBAwayController *away = [objc_getClass("SBAwayController") sharedAwayController];
-    BOOL locked = [away respondsToSelector:@selector(isLocked)] && [away isLocked];
+    BOOL locked = IRCCLocked();
     if (!_edgeWindow) {
         CGRect screen = [self screen];
         _edgeWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, screen.size.height - kIRCCEdgeHeight, screen.size.width, kIRCCEdgeHeight)];
@@ -465,7 +473,10 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
         [_edgeWindow addGestureRecognizer:pan];
     }
     // Полоску не прячем, пока открыта панель: её жест ещё может идти, а сама панель лежит выше
-    _edgeWindow.hidden = !enabled || locked;
+    BOOL hidden = !enabled || locked;
+    if (_edgeWindow.hidden != hidden)
+        IRLog(@"Пункт управления: полоска жеста %@ (включено: %d, блокировка: %d)", hidden ? @"скрыта" : @"видна", enabled, locked);
+    _edgeWindow.hidden = hidden;
     if ((!enabled || locked) && self.visible)
         [self hideAnimated:NO completion:nil];
 }
@@ -545,6 +556,13 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
     CGFloat dy = [pan translationInView:pan.view].y;
     switch (pan.state) {
     case UIGestureRecognizerStateBegan:
+        if (IRCCLocked()) {
+            // Полоска осталась от разблокированного экрана: убираем её и гасим жест
+            pan.enabled = NO;
+            pan.enabled = YES;
+            [self updateEdge];
+            return;
+        }
         [self prepareToShow];
         [self setPanelOffset:-dy];
         break;
@@ -638,11 +656,24 @@ static void hook_finishLaunching(id self, SEL _cmd, id application) {
     [[IRCCController shared] updateEdge];
 }
 
-static void IRCCStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
-    // Блокировка экрана применяется не мгновенно
-    dispatch_async(dispatch_get_main_queue(), ^{
+// Задержка в миллисекундах: целое число не тянет __fixdfdi, которого нет в заглушках armv7
+static void IRCCUpdateEdgeLater(int64_t milliseconds) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, milliseconds * (int64_t)NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
         [[IRCCController shared] updateEdge];
     });
+}
+
+static void (*orig_frontDisplayDidChange)(id, SEL);
+static void hook_frontDisplayDidChange(id self, SEL _cmd) {
+    orig_frontDisplayDidChange(self, _cmd);
+    IRCCUpdateEdgeLater(0);
+}
+
+static void IRCCStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
+    // Блокировка и разблокировка применяются не мгновенно, а с анимацией
+    IRCCUpdateEdgeLater(0);
+    IRCCUpdateEdgeLater(700);
+    IRCCUpdateEdgeLater(2000);
 }
 
 __attribute__((constructor)) static void IRControlCenterInit(void) {
@@ -653,6 +684,7 @@ __attribute__((constructor)) static void IRControlCenterInit(void) {
         IR_HOOK(springBoard, @selector(applicationDidFinishLaunching:), hook_finishLaunching, &orig_finishLaunching);
         IR_HOOK(springBoard, @selector(menuButtonDown:), hook_menuButtonDown, &orig_menuButtonDown);
         IR_HOOK(springBoard, @selector(menuButtonUp:), hook_menuButtonUp, &orig_menuButtonUp);
+        IR_HOOK(springBoard, @selector(frontDisplayDidChange), hook_frontDisplayDidChange, &orig_frontDisplayDidChange);
         IRObserveDarwin(IR_NOTIFY_PREFS, IRCCStateChanged);
         IRObserveDarwin("com.apple.springboard.lockstate", IRCCStateChanged);
     }

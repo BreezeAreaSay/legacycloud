@@ -2,7 +2,7 @@ Package: com.ios6revive.swipeback
 Name: Смахивание назад
 Version: 0.1.0
 Architecture: iphoneos-arm
-Description: Жест из iOS 7: проведите от левого края экрана, чтобы вернуться назад. Анимация сдвига — как в iOS 6.
+Description: Swipe from the left edge to go back (iOS 7) with iOS 6 animation
 Maintainer: BreezeAreaSay
 Author: BreezeAreaSay
 Section: iOS6Revive

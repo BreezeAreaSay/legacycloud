@@ -2,7 +2,7 @@ Package: com.ios6revive.nightshift
 Name: Night Shift
 Version: 0.1.0
 Architecture: iphoneos-arm
-Description: Тёплые цвета дисплея по расписанию или вручную, как в iOS 9.3.
+Description: Night Shift (iOS 9.3): warm display colors on a schedule
 Maintainer: BreezeAreaSay
 Author: BreezeAreaSay
 Section: iOS6Revive

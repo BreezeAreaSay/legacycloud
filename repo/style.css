@@ -1,0 +1,80 @@
+/* iOS6Revive: сгруппированная таблица iOS 6 на «полосках». Только то, что понимает Safari из iOS 6. */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  padding: 0 0 24px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #000;
+  background-color: #c5ccd4;
+  background-image: -webkit-linear-gradient(left, #c5ccd4 0, #c5ccd4 71%, #cbd2d8 71%, #cbd2d8 100%);
+  background-image: linear-gradient(to right, #c5ccd4 0, #c5ccd4 71%, #cbd2d8 71%, #cbd2d8 100%);
+  background-size: 7px 7px;
+}
+.bar {
+  height: 44px;
+  line-height: 44px;
+  text-align: center;
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.5);
+  background: #6d84a2;
+  background-image: -webkit-linear-gradient(top, #b0bccd 0, #889bb3 50%, #8195af 50%, #6d84a2 100%);
+  background-image: linear-gradient(to bottom, #b0bccd 0, #889bb3 50%, #8195af 50%, #6d84a2 100%);
+  border-bottom: 1px solid #2d3642;
+}
+.page { max-width: 600px; margin: 0 auto; padding: 0 10px; }
+.hero { text-align: center; padding: 22px 10px 4px; }
+.hero img { width: 64px; height: 64px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+.hero h1 { margin: 10px 0 2px; font-size: 22px; color: #4c566c; text-shadow: 0 1px 0 #fff; }
+.hero p { margin: 0; font-size: 15px; color: #4c566c; text-shadow: 0 1px 0 #fff; }
+h2 {
+  margin: 22px 10px 7px;
+  font-size: 17px;
+  color: #4c566c;
+  text-shadow: 0 1px 0 #fff;
+}
+.group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #a9abad;
+  border-radius: 9px;
+  box-shadow: 0 1px 0 #fff;
+  overflow: hidden;
+}
+.group > li { border-top: 1px solid #e0e0e0; padding: 11px 10px; font-size: 15px; line-height: 1.3; }
+.group > li:first-child { border-top: 0; }
+.group b { display: block; font-size: 17px; }
+.group span { color: #7f7f7f; }
+code { color: #385487; font-family: inherit; word-wrap: break-word; }
+.button {
+  display: block;
+  margin: 18px 0 0;
+  padding: 12px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  text-decoration: none;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  border: 1px solid #1e3f75;
+  border-radius: 9px;
+  background: #2f6ad0;
+  background-image: -webkit-linear-gradient(top, #7da7ef 0, #3f78de 50%, #2a63cf 50%, #2659c4 100%);
+  background-image: linear-gradient(to bottom, #7da7ef 0, #3f78de 50%, #2a63cf 50%, #2659c4 100%);
+  box-shadow: 0 1px 0 #fff;
+}
+.footer { margin: 9px 10px 0; font-size: 14px; text-align: center; color: #4c566c; text-shadow: 0 1px 0 #fff; }
+
+/* Страницы пакетов */
+.group p { margin: 0; padding: 11px 10px; font-size: 15px; line-height: 1.35; border-top: 1px solid #e0e0e0; }
+.group p:first-child { border-top: 0; }
+.group ul { margin: 0; padding: 9px 10px 9px 28px; font-size: 15px; line-height: 1.35; border-top: 1px solid #e0e0e0; }
+.group ul:first-child { border-top: 0; }
+.group li.row { overflow: hidden; }
+.group li.row em { float: right; font-style: normal; color: #385487; }
+.group a { color: inherit; text-decoration: none; display: block; }
+.group ul li { padding: 2px 0; }
+.depiction { padding-top: 14px; }

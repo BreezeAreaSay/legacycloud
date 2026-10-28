@@ -76,6 +76,8 @@ tweaks/core      IRCore (SpringBoard) + IRSettings (Настройки)
 tweaks/<функция> по твику на функцию, у каждого свой control и фильтр MobileSubstrate
 meta/quickwins   мета-пакет
 repo/            статичные файлы источника: страница, CydiaIcon.png
+depictions/      русские описания пакетов (страница пакета в Cydia); в control — короткая строка
+                 по-английски, потому что Cydia на iOS 6 превращает кириллицу в Description в «?»
 scripts/         генерация Packages/Release, иконка, проверка
 ```
 

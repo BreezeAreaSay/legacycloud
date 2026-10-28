@@ -1,15 +1,13 @@
-// Пункт управления (iOS 7) в стиле iOS 6: свайп вверх от нижнего края экрана.
+// Пункт управления (iOS 7) в стиле iOS 6.
 //
-// Панель — тёмный лён, как у панели многозадачности iOS 6. Внутри родные элементы iOS 6:
-// ползунок UISlider и громкость MPVolumeView (с выбором вывода звука, например на AirPods).
+// Раскладка iOS 7, материалы — по концепту с r/jailbreak: перфорированный тёмный металл, квадратные
+// кнопки с серебристым ободком, синий глянец у включённых, круглые серебристые кнопки музыки.
+// Ползунки родные: UISlider и громкость MPVolumeView (с выбором вывода звука, например на AirPods).
 //
-// Жест: в SpringBoard iOS 6 нет открытого способа добавить свой системный жест, поэтому, как
-// Activator, держим у нижнего края тонкое прозрачное окно SpringBoard поверх программ.
-// На экране блокировки окна нет — там внизу слайдер и камера.
-//
-// Блокировку не берём из одного уведомления: при разблокировке SpringBoard iOS 6 шлёт
-// com.apple.springboard.lockstate, пока -[SBAwayController isLocked] ещё отвечает YES (идёт анимация).
-// Поэтому перепроверяем позже, при смене программы на экране и в самом начале жеста.
+// Жест даёт Activator: в SpringBoard iOS 6 нет открытого способа добавить свой системный жест,
+// а прозрачное окно у края поверх программ касаний не получает. Пункт управления — действие
+// Activator; при первом запуске оно само встаёт на «Свайп вверх от низа», если тот свободен.
+// libactivator подгружаем через dlopen и берём классы через objc_getClass, без линковки.
 
 #import "IRShared.h"
 #import "IRPrivate.h"
@@ -21,8 +19,10 @@
 
 #define kIRControlCenter @"ControlCenter"
 
-static const CGFloat kIRCCEdgeHeight = 8;
-static const CGFloat kIRCCPanelHeight = 318;
+#define kIRCCActivatorDefaults @"ControlCenterActivatorDefaults"
+#define kIRCCListener @"com.ios6revive.controlcenter"
+
+static const CGFloat kIRCCPanelHeight = 356;
 static const UIWindowLevel kIRCCWindowLevel = 1050;
 
 #pragma mark - Приватные API SpringBoard iOS 6.1
@@ -68,13 +68,21 @@ static const UIWindowLevel kIRCCWindowLevel = 1050;
 - (BOOL)changeTrack:(int)direction;
 - (NSString *)nowPlayingTitle;
 - (NSString *)nowPlayingArtist;
+- (NSString *)nowPlayingAlbum;
 - (BOOL)isPlaying;
 - (BOOL)hasTrack;
 @end
 
-@interface SBAwayController : NSObject
-+ (instancetype)sharedAwayController;
-- (BOOL)isLocked;
+// Activator (libactivator): только то, чем пользуемся
+@interface LAEvent : NSObject
++ (id)eventWithName:(NSString *)name mode:(NSString *)mode;
+@property(nonatomic, getter=isHandled) BOOL handled;
+@end
+
+@interface LAActivator : NSObject
+- (void)registerListener:(id)listener forName:(NSString *)name;
+- (void)assignEvent:(LAEvent *)event toListenerWithName:(NSString *)listenerName;
+- (NSString *)assignedListenerNameForEvent:(LAEvent *)event;
 @end
 
 @interface SBApplicationController (IRControlCenter)
@@ -262,24 +270,12 @@ static void IRLaunch(NSString *identifier) {
 @end
 
 @implementation IRCCPanel {
-    NSArray *_toggles;            // IRCCButton, tag = IRCCToggle
+    NSArray *_toggles;
     UISlider *_brightness;
-    UILabel *_title;
     UILabel *_artist;
+    UILabel *_title;
+    UILabel *_album;
     IRCCButton *_playPause;
-}
-
-static UIView *IRCCSeparator(CGFloat y, CGFloat width) {
-    // Гравированная линия: тёмная и светлая под ней
-    UIView *line = [[UIView alloc] initWithFrame:CGRectMake(10, y, width - 20, 2)];
-    line.userInteractionEnabled = NO;
-    UIView *dark = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width - 20, 1)];
-    dark.backgroundColor = [UIColor colorWithWhite:0 alpha:0.5];
-    UIView *light = [[UIView alloc] initWithFrame:CGRectMake(0, 1, width - 20, 1)];
-    light.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
-    [line addSubview:dark];
-    [line addSubview:light];
-    return line;
 }
 
 static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
@@ -288,31 +284,40 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
     label.textAlignment = NSTextAlignmentCenter;
     label.font = font;
     label.textColor = color;
-    label.shadowColor = [UIColor colorWithWhite:0 alpha:0.7];
+    label.shadowColor = [UIColor colorWithWhite:0 alpha:0.8];
     label.shadowOffset = CGSizeMake(0, -1);
     return label;
+}
+
+static IRCCButton *IRCCMakeButton(IRCCGlyph glyph, IRCCButtonStyle style, CGRect frame, NSInteger tag, id target, SEL action) {
+    IRCCButton *button = [IRCCButton buttonWithGlyph:glyph style:style];
+    button.frame = frame;
+    button.tag = tag;
+    [button addTarget:target action:action forControlEvents:UIControlEventTouchUpInside];
+    return button;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame]))
         return nil;
     CGFloat width = frame.size.width;
-    self.backgroundColor = [UIColor scrollViewTexturedBackgroundColor];
+    self.backgroundColor = IRCCPerforatedColor();
     self.clipsToBounds = NO;
 
-    // Тень сверху и светлый кант, как у панели многозадачности
+    // Тень сверху и светлый кант
     CAGradientLayer *shadow = [CAGradientLayer layer];
     shadow.frame = CGRectMake(0, -6, width, 6);
-    shadow.colors = @[(id)[UIColor colorWithWhite:0 alpha:0].CGColor, (id)[UIColor colorWithWhite:0 alpha:0.45].CGColor];
+    shadow.colors = @[(id)[UIColor colorWithWhite:0 alpha:0].CGColor, (id)[UIColor colorWithWhite:0 alpha:0.5].CGColor];
     [self.layer addSublayer:shadow];
     UIView *edge = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, 1)];
-    edge.backgroundColor = [UIColor colorWithWhite:1 alpha:0.12];
+    edge.backgroundColor = [UIColor colorWithWhite:1 alpha:0.18];
     [self addSubview:edge];
 
-    UIView *grabber = [[UIView alloc] initWithFrame:CGRectMake(width / 2 - 18, 8, 36, 5)];
-    grabber.backgroundColor = [UIColor colorWithWhite:0 alpha:0.55];
+    // Язычок: панель можно стянуть вниз
+    UIView *grabber = [[UIView alloc] initWithFrame:CGRectMake(width / 2 - 18, 7, 36, 5)];
+    grabber.backgroundColor = [UIColor colorWithWhite:0 alpha:0.6];
     grabber.layer.cornerRadius = 2.5;
-    grabber.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.1].CGColor;
+    grabber.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
     grabber.layer.borderWidth = 0.5;
     [self addSubview:grabber];
 
@@ -320,60 +325,51 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
     const IRCCGlyph glyphs[] = {IRCCGlyphAirplane, IRCCGlyphWiFi, IRCCGlyphBluetooth, IRCCGlyphMoon, IRCCGlyphRotationLock};
     const IRCCToggle toggles[] = {IRCCAirplane, IRCCWiFi, IRCCBluetooth, IRCCDoNotDisturb, IRCCRotationLock};
     NSMutableArray *buttons = [NSMutableArray array];
-    CGFloat gap = (width - 5 * 46) / 6;
+    CGFloat gap = (width - 5 * 52) / 6;
     for (int i = 0; i < 5; i++) {
-        IRCCButton *button = [IRCCButton buttonWithGlyph:glyphs[i]];
-        button.tag = toggles[i];
-        button.frame = CGRectMake(gap + i * (46 + gap), 22, 46, 46);
-        [button addTarget:self action:@selector(toggleTapped:) forControlEvents:UIControlEventTouchUpInside];
+        IRCCButton *button = IRCCMakeButton(glyphs[i], IRCCButtonStyleSquare, CGRectMake(gap + i * (52 + gap), 20, 52, 52),
+                                            toggles[i], self, @selector(toggleTapped:));
         [self addSubview:button];
         [buttons addObject:button];
     }
-    [self addSubview:IRCCSeparator(80, width)];
 
     // Яркость — родной ползунок iOS 6
-    _brightness = [[UISlider alloc] initWithFrame:CGRectMake(16, 90, width - 32, 23)];
-    _brightness.minimumValueImage = IRCCGlyphImage(IRCCGlyphSunSmall, 18, [UIColor colorWithWhite:1 alpha:0.75]);
-    _brightness.maximumValueImage = IRCCGlyphImage(IRCCGlyphSunLarge, 22, [UIColor colorWithWhite:1 alpha:0.75]);
+    _brightness = [[UISlider alloc] initWithFrame:CGRectMake(16, 88, width - 32, 23)];
+    _brightness.minimumValueImage = IRCCGlyphImage(IRCCGlyphSunSmall, 18, [UIColor colorWithWhite:1 alpha:0.8]);
+    _brightness.maximumValueImage = IRCCGlyphImage(IRCCGlyphSunLarge, 22, [UIColor colorWithWhite:1 alpha:0.8]);
     [_brightness addTarget:self action:@selector(brightnessChanged:) forControlEvents:UIControlEventValueChanged];
     [self addSubview:_brightness];
-    [self addSubview:IRCCSeparator(124, width)];
 
-    // Музыка
-    _title = IRCCLabel(CGRectMake(20, 132, width - 40, 19), [UIFont boldSystemFontOfSize:15], [UIColor whiteColor]);
-    _artist = IRCCLabel(CGRectMake(20, 150, width - 40, 17), [UIFont systemFontOfSize:13], [UIColor colorWithWhite:0.75 alpha:1]);
-    [self addSubview:_title];
+    // Музыка: исполнитель, название, альбом и круглые серебристые кнопки
+    _artist = IRCCLabel(CGRectMake(20, 122, width - 40, 16), [UIFont boldSystemFontOfSize:13], [UIColor colorWithWhite:0.62 alpha:1]);
+    _title = IRCCLabel(CGRectMake(20, 138, width - 40, 22), [UIFont boldSystemFontOfSize:18], [UIColor whiteColor]);
+    _album = IRCCLabel(CGRectMake(20, 161, width - 40, 15), [UIFont boldSystemFontOfSize:11], [UIColor colorWithWhite:0.62 alpha:1]);
     [self addSubview:_artist];
+    [self addSubview:_title];
+    [self addSubview:_album];
     const IRCCGlyph mediaGlyphs[] = {IRCCGlyphPrevious, IRCCGlyphPlay, IRCCGlyphNext};
     for (int i = 0; i < 3; i++) {
-        IRCCButton *button = [IRCCButton buttonWithGlyph:mediaGlyphs[i]];
-        button.plain = YES;
-        button.tag = i - 1; // -1 назад, 0 пауза, 1 вперёд
-        button.frame = CGRectMake(width / 2 - 22 + (i - 1) * 80, 168, 44, 40);
-        [button addTarget:self action:@selector(mediaTapped:) forControlEvents:UIControlEventTouchUpInside];
+        // tag: -1 назад, 0 пауза, 1 вперёд
+        IRCCButton *button = IRCCMakeButton(mediaGlyphs[i], IRCCButtonStyleMedia, CGRectMake(width / 2 - 25 + (i - 1) * 76, 184, 50, 50),
+                                            i - 1, self, @selector(mediaTapped:));
         [self addSubview:button];
         if (i == 1)
             _playPause = button;
     }
-    MPVolumeView *volume = [[MPVolumeView alloc] initWithFrame:CGRectMake(20, 214, width - 40, 23)];
+    MPVolumeView *volume = [[MPVolumeView alloc] initWithFrame:CGRectMake(20, 248, width - 40, 23)];
     [self addSubview:volume];
-    [self addSubview:IRCCSeparator(246, width)];
 
     // Фонарик и быстрые программы
     const IRCCGlyph appGlyphs[] = {IRCCGlyphFlashlight, IRCCGlyphTimer, IRCCGlyphCalculator, IRCCGlyphCamera};
-    gap = (width - 4 * 46) / 5;
+    gap = (width - 4 * 60) / 5;
     for (int i = 0; i < 4; i++) {
-        IRCCButton *button = [IRCCButton buttonWithGlyph:appGlyphs[i]];
-        button.tag = i;
-        button.frame = CGRectMake(gap + i * (46 + gap), 258, 46, 46);
-        [button addTarget:self action:@selector(appTapped:) forControlEvents:UIControlEventTouchUpInside];
+        CGRect buttonFrame = CGRectMake(gap + i * (60 + gap), 282, 60, 60);
+        IRCCButton *button = i == 0
+            ? IRCCMakeButton(appGlyphs[i], IRCCButtonStyleSquare, buttonFrame, IRCCFlashlight, self, @selector(toggleTapped:))
+            : IRCCMakeButton(appGlyphs[i], IRCCButtonStyleSquare, buttonFrame, i, self, @selector(appTapped:));
         [self addSubview:button];
-        if (i == 0) {
-            button.tag = IRCCFlashlight;
-            [button removeTarget:self action:@selector(appTapped:) forControlEvents:UIControlEventTouchUpInside];
-            [button addTarget:self action:@selector(toggleTapped:) forControlEvents:UIControlEventTouchUpInside];
+        if (i == 0)
             [buttons addObject:button];
-        }
     }
     _toggles = buttons;
     return self;
@@ -387,8 +383,14 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
 
     SBMediaController *media = [objc_getClass("SBMediaController") sharedInstance];
     BOOL hasTrack = [media respondsToSelector:@selector(hasTrack)] && [media hasTrack];
-    _title.text = hasTrack ? ([media nowPlayingTitle] ?: @"") : @"Музыка";
     _artist.text = hasTrack ? ([media nowPlayingArtist] ?: @"") : @"";
+    _title.text = hasTrack ? ([media nowPlayingTitle] ?: @"") : @"Музыка";
+    // Альбом капителью с разрядкой, как подписи на стекле iOS 6
+    NSString *album = hasTrack && [media respondsToSelector:@selector(nowPlayingAlbum)] ? [[media nowPlayingAlbum] uppercaseString] : nil;
+    _album.attributedText = [[NSAttributedString alloc] initWithString:album ?: @""
+                                                            attributes:@{NSKernAttributeName: @2, NSFontAttributeName: _album.font,
+                                                                         NSForegroundColorAttributeName: _album.textColor}];
+    _album.textAlignment = NSTextAlignmentCenter;
     _playPause.glyph = (hasTrack && [media isPlaying]) ? IRCCGlyphPause : IRCCGlyphPlay;
 }
 
@@ -426,20 +428,19 @@ static UILabel *IRCCLabel(CGRect frame, UIFont *font, UIColor *color) {
 
 #pragma mark - Контроллер
 
-static BOOL IRCCLocked(void) {
-    SBAwayController *away = [objc_getClass("SBAwayController") sharedAwayController];
-    return [away respondsToSelector:@selector(isLocked)] && [away isLocked];
+static NSString *IRActivatorConstant(const char *name) {
+    NSString *const *value = (NSString *const *)dlsym(RTLD_DEFAULT, name);
+    return value ? *value : nil;
 }
 
 @interface IRCCController : NSObject <UIGestureRecognizerDelegate>
 + (instancetype)shared;
-- (void)updateEdge;
+- (void)showAnimated;
 - (void)hideAnimated:(BOOL)animated completion:(void (^)(void))completion;
 @property(nonatomic, readonly, getter=isVisible) BOOL visible;
 @end
 
 @implementation IRCCController {
-    UIWindow *_edgeWindow;
     UIWindow *_window;
     UIView *_dim;
     IRCCPanel *_panel;
@@ -458,27 +459,6 @@ static BOOL IRCCLocked(void) {
 
 - (CGRect)screen {
     return [UIScreen mainScreen].bounds;
-}
-
-- (void)updateEdge {
-    BOOL enabled = IRBool(IRPrefsRead(), kIRControlCenter, YES);
-    BOOL locked = IRCCLocked();
-    if (!_edgeWindow) {
-        CGRect screen = [self screen];
-        _edgeWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, screen.size.height - kIRCCEdgeHeight, screen.size.width, kIRCCEdgeHeight)];
-        _edgeWindow.windowLevel = kIRCCWindowLevel - 1;
-        // Почти прозрачный фон: окно с совсем прозрачным фоном может не получать касания
-        _edgeWindow.backgroundColor = [UIColor colorWithWhite:0 alpha:0.011];
-        UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(edgePan:)];
-        [_edgeWindow addGestureRecognizer:pan];
-    }
-    // Полоску не прячем, пока открыта панель: её жест ещё может идти, а сама панель лежит выше
-    BOOL hidden = !enabled || locked;
-    if (_edgeWindow.hidden != hidden)
-        IRLog(@"Пункт управления: полоска жеста %@ (включено: %d, блокировка: %d)", hidden ? @"скрыта" : @"видна", enabled, locked);
-    _edgeWindow.hidden = hidden;
-    if ((!enabled || locked) && self.visible)
-        [self hideAnimated:NO completion:nil];
 }
 
 - (BOOL)isVisible {
@@ -526,59 +506,25 @@ static BOOL IRCCLocked(void) {
     CGRect frame = _panel.frame;
     frame.origin.y = [self screen].size.height - offset;
     _panel.frame = frame;
-    _dim.alpha = 0.35 * offset / kIRCCPanelHeight;
+    _dim.alpha = 0.4 * offset / kIRCCPanelHeight;
 }
 
 - (CGFloat)panelOffset {
     return [self screen].size.height - _panel.frame.origin.y;
 }
 
-- (void)prepareToShow {
+- (void)showAnimated {
+    if (self.visible)
+        return;
     [self buildWindow];
     [_panel refresh];
+    [self setPanelOffset:0];
     _window.hidden = NO;
     [_refreshTimer invalidate];
     _refreshTimer = [NSTimer scheduledTimerWithTimeInterval:1 target:_panel selector:@selector(refresh) userInfo:nil repeats:YES];
-}
-
-- (void)settleWithVelocity:(CGFloat)velocity {
-    BOOL open = velocity < -250 || (velocity < 250 && [self panelOffset] > kIRCCPanelHeight / 3);
-    if (open) {
-        [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-            [self setPanelOffset:kIRCCPanelHeight];
-        } completion:nil];
-    } else {
-        [self hideAnimated:YES completion:nil];
-    }
-}
-
-- (void)edgePan:(UIPanGestureRecognizer *)pan {
-    CGFloat dy = [pan translationInView:pan.view].y;
-    switch (pan.state) {
-    case UIGestureRecognizerStateBegan:
-        if (IRCCLocked()) {
-            // Полоска осталась от разблокированного экрана: убираем её и гасим жест
-            pan.enabled = NO;
-            pan.enabled = YES;
-            [self updateEdge];
-            return;
-        }
-        [self prepareToShow];
-        [self setPanelOffset:-dy];
-        break;
-    case UIGestureRecognizerStateChanged:
-        [self setPanelOffset:-dy];
-        break;
-    case UIGestureRecognizerStateEnded:
-        [self settleWithVelocity:[pan velocityInView:pan.view].y];
-        break;
-    case UIGestureRecognizerStateCancelled:
-    case UIGestureRecognizerStateFailed:
-        [self hideAnimated:YES completion:nil];
-        break;
-    default:
-        break;
-    }
+    [UIView animateWithDuration:0.3 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+        [self setPanelOffset:kIRCCPanelHeight];
+    } completion:nil];
 }
 
 - (void)panelPan:(UIPanGestureRecognizer *)pan {
@@ -591,9 +537,17 @@ static BOOL IRCCLocked(void) {
         [self setPanelOffset:_panStartY - dy];
         break;
     case UIGestureRecognizerStateEnded:
-    case UIGestureRecognizerStateCancelled:
-        [self settleWithVelocity:[pan velocityInView:_window].y];
+    case UIGestureRecognizerStateCancelled: {
+        CGFloat velocity = [pan velocityInView:_window].y;
+        if (velocity > 250 || (velocity > -250 && [self panelOffset] < kIRCCPanelHeight * 2 / 3)) {
+            [self hideAnimated:YES completion:nil];
+        } else {
+            [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+                [self setPanelOffset:kIRCCPanelHeight];
+            } completion:nil];
+        }
         break;
+    }
     default:
         break;
     }
@@ -608,11 +562,10 @@ static BOOL IRCCLocked(void) {
     _refreshTimer = nil;
     void (^finish)(void) = ^{
         self->_window.hidden = YES;
-        [self updateEdge];
         if (completion)
             completion();
     };
-    if (!animated || !_window) {
+    if (!animated || !self.visible) {
         [self setPanelOffset:0];
         finish();
         return;
@@ -624,11 +577,94 @@ static BOOL IRCCLocked(void) {
     }];
 }
 
+#pragma mark Activator
+
+- (void)activator:(LAActivator *)activator receiveEvent:(LAEvent *)event forListenerName:(NSString *)listenerName {
+    if (!IRBool(IRPrefsRead(), kIRControlCenter, YES))
+        return;
+    if (self.visible)
+        [self hideAnimated:YES completion:nil];
+    else
+        [self showAnimated];
+    event.handled = YES;
+}
+
+// «Домой», пока панель открыта, только закрывает её
+- (void)activator:(LAActivator *)activator receiveDeactivateEvent:(LAEvent *)event {
+    if (!self.visible)
+        return;
+    [self hideAnimated:YES completion:nil];
+    event.handled = YES;
+}
+
+- (NSString *)activator:(LAActivator *)activator requiresLocalizedTitleForListenerName:(NSString *)listenerName {
+    return @"Пункт управления";
+}
+
+- (NSString *)activator:(LAActivator *)activator requiresLocalizedDescriptionForListenerName:(NSString *)listenerName {
+    return @"Переключатели, яркость, музыка и фонарик";
+}
+
+- (NSString *)activator:(LAActivator *)activator requiresLocalizedGroupForListenerName:(NSString *)listenerName {
+    return @"iOS6Revive";
+}
+
+// Не на экране блокировки: оттуда запуск программ и переключатели без разблокировки ни к чему
+- (NSArray *)activator:(LAActivator *)activator requiresCompatibleEventModesForListenerWithName:(NSString *)listenerName {
+    NSString *springBoard = IRActivatorConstant("LAEventModeSpringBoard");
+    NSString *application = IRActivatorConstant("LAEventModeApplication");
+    return springBoard && application ? @[springBoard, application] : @[];
+}
+
+// Иконка — кнопка панели со знаком ползунков
+- (UIImage *)activator:(LAActivator *)activator requiresIconForListenerName:(NSString *)listenerName scale:(CGFloat)scale {
+    IRCCButton *button = [IRCCButton buttonWithGlyph:IRCCGlyphSliders style:IRCCButtonStyleSquare];
+    button.frame = CGRectMake(0, 0, 29, 29);
+    UIGraphicsBeginImageContextWithOptions(button.bounds.size, NO, scale);
+    [button drawRect:button.bounds];
+    UIImage *icon = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return icon;
+}
+
+- (UIImage *)activator:(LAActivator *)activator requiresSmallIconForListenerName:(NSString *)listenerName scale:(CGFloat)scale {
+    return [self activator:activator requiresIconForListenerName:listenerName scale:scale];
+}
+
 @end
 
 #pragma mark - SpringBoard
 
-// Кнопка «Домой» при открытой панели только закрывает её
+static LAActivator *IRActivator(void) {
+    static BOOL loaded;
+    if (!loaded) {
+        loaded = YES;
+        dlopen("/usr/lib/libactivator.dylib", RTLD_LAZY);
+    }
+    return [objc_getClass("LAActivator") sharedInstance];
+}
+
+// Один раз ставим Пункт управления на «Свайп вверх от низа» — если жест ещё ничем не занят.
+// Флаг в настройках: если потом жест переназначат, второй раз не вмешиваемся.
+static void IRAssignDefaultGesture(void) {
+    if (IRBool(IRPrefsRead(), kIRCCActivatorDefaults, NO))
+        return;
+    LAActivator *activator = IRActivator();
+    NSString *slide = IRActivatorConstant("LAEventNameSlideInFromBottom");
+    NSString *springBoard = IRActivatorConstant("LAEventModeSpringBoard");
+    NSString *application = IRActivatorConstant("LAEventModeApplication");
+    Class eventClass = objc_getClass("LAEvent");
+    if (!activator || !slide || !springBoard || !application || !eventClass)
+        return;
+    for (NSString *mode in @[springBoard, application]) {
+        LAEvent *event = [eventClass eventWithName:slide mode:mode];
+        if (![activator assignedListenerNameForEvent:event])
+            [activator assignEvent:event toListenerWithName:kIRCCListener];
+    }
+    IRPrefsSet(kIRCCActivatorDefaults, @YES);
+}
+
+// Кнопка «Домой» при открытой панели только закрывает её (если Activator не сделал этого раньше)
 static BOOL gSwallowMenuUp;
 
 static void (*orig_menuButtonDown)(id, SEL, void *);
@@ -653,27 +689,13 @@ static void hook_menuButtonUp(id self, SEL _cmd, void *event) {
 static void (*orig_finishLaunching)(id, SEL, id);
 static void hook_finishLaunching(id self, SEL _cmd, id application) {
     orig_finishLaunching(self, _cmd, application);
-    [[IRCCController shared] updateEdge];
+    IRAssignDefaultGesture();
 }
 
-// Задержка в миллисекундах: целое число не тянет __fixdfdi, которого нет в заглушках armv7
-static void IRCCUpdateEdgeLater(int64_t milliseconds) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, milliseconds * (int64_t)NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
-        [[IRCCController shared] updateEdge];
+static void IRCCLockStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[IRCCController shared] hideAnimated:NO completion:nil];
     });
-}
-
-static void (*orig_frontDisplayDidChange)(id, SEL);
-static void hook_frontDisplayDidChange(id self, SEL _cmd) {
-    orig_frontDisplayDidChange(self, _cmd);
-    IRCCUpdateEdgeLater(0);
-}
-
-static void IRCCStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
-    // Блокировка и разблокировка применяются не мгновенно, а с анимацией
-    IRCCUpdateEdgeLater(0);
-    IRCCUpdateEdgeLater(700);
-    IRCCUpdateEdgeLater(2000);
 }
 
 __attribute__((constructor)) static void IRControlCenterInit(void) {
@@ -684,8 +706,11 @@ __attribute__((constructor)) static void IRControlCenterInit(void) {
         IR_HOOK(springBoard, @selector(applicationDidFinishLaunching:), hook_finishLaunching, &orig_finishLaunching);
         IR_HOOK(springBoard, @selector(menuButtonDown:), hook_menuButtonDown, &orig_menuButtonDown);
         IR_HOOK(springBoard, @selector(menuButtonUp:), hook_menuButtonUp, &orig_menuButtonUp);
-        IR_HOOK(springBoard, @selector(frontDisplayDidChange), hook_frontDisplayDidChange, &orig_frontDisplayDidChange);
-        IRObserveDarwin(IR_NOTIFY_PREFS, IRCCStateChanged);
-        IRObserveDarwin("com.apple.springboard.lockstate", IRCCStateChanged);
+        IRObserveDarwin("com.apple.springboard.lockstate", IRCCLockStateChanged);
+        LAActivator *activator = IRActivator();
+        if ([activator respondsToSelector:@selector(registerListener:forName:)])
+            [activator registerListener:[IRCCController shared] forName:kIRCCListener];
+        else
+            IRLog(@"Activator не найден: Пункт управления открыть нечем");
     }
 }

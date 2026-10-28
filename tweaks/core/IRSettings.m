@@ -528,7 +528,7 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
 
     if (IRFeatureInstalled(@"IRControlCenter")) {
         [specs addObject:IRGroup(nil, @"Проведите вверх от нижнего края экрана, чтобы открыть Пункт управления. "
-                                      @"На экране блокировки он не открывается.")];
+                                      @"Жест можно сменить в Activator: действие «Пункт управления» в разделе iOS6Revive.")];
         [specs addObject:[self ir_switch:@"Пункт управления" key:@"ControlCenter" fallback:YES]];
     }
 

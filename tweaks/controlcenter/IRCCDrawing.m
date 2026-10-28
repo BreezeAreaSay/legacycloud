@@ -173,24 +173,69 @@ UIImage *IRCCGlyphImage(IRCCGlyph glyph, CGFloat size, UIColor *color) {
 
 #pragma mark - Материалы
 
-// Ячейка 4×4 пт: тёмный металл и отверстие со светлым краем снизу
-UIColor *IRCCPerforatedColor(void) {
+// Лён: шум и «нити» — случайные сдвиги яркости по строкам и столбцам. Генератор с постоянным
+// зерном, чтобы ткань всегда была одинаковой. Плитка 64×64 пт повторяется без швов.
+UIColor *IRCCLinenColor(void) {
     static UIColor *color;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        UIGraphicsBeginImageContextWithOptions(CGSizeMake(4, 4), YES, 0);
+        const int scale = (int)[UIScreen mainScreen].scale, side = 64 * scale;
+        uint32_t seed = 0x6a0a;
+        int rows[256], columns[256];
+        for (int i = 0; i < side; i++) {
+            seed = seed * 1103515245 + 12345;
+            rows[i] = (int)((seed >> 16) % 13) - 6;
+            seed = seed * 1103515245 + 12345;
+            columns[i] = (int)((seed >> 16) % 13) - 6;
+        }
+        uint8_t *pixels = malloc(side * side);
+        for (int y = 0; y < side; y++) {
+            for (int x = 0; x < side; x++) {
+                seed = seed * 1103515245 + 12345;
+                int value = 60 + rows[y] / 2 + columns[x] / 2 + (int)((seed >> 16) % 9) - 4;
+                pixels[y * side + x] = (uint8_t)MAX(0, MIN(255, value));
+            }
+        }
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceGray();
+        CGContextRef ctx = CGBitmapContextCreate(pixels, side, side, 8, side, space, kCGImageAlphaNone);
+        CGImageRef image = CGBitmapContextCreateImage(ctx);
+        color = [UIColor colorWithPatternImage:[UIImage imageWithCGImage:image scale:scale orientation:UIImageOrientationUp]];
+        CGImageRelease(image);
+        CGContextRelease(ctx);
+        CGColorSpaceRelease(space);
+        free(pixels);
+    });
+    return color;
+}
+
+// Мелкая сетка точек в поле кнопки, как у Auxo
+static UIColor *IRCCMeshColor(void) {
+    static UIColor *color;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(3, 3), NO, 0);
         CGContextRef ctx = UIGraphicsGetCurrentContext();
-        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.17 alpha:1].CGColor);
-        CGContextFillRect(ctx, CGRectMake(0, 0, 4, 4));
-        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:1 alpha:0.08].CGColor);
-        CGContextFillEllipseInRect(ctx, CGRectMake(1.1, 1.5, 1.8, 1.8));
-        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.04 alpha:1].CGColor);
-        CGContextFillEllipseInRect(ctx, CGRectMake(1.1, 1.1, 1.8, 1.8));
+        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0 alpha:0.4].CGColor);
+        CGContextFillEllipseInRect(ctx, CGRectMake(0.3, 0.3, 1.2, 1.2));
+        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:1 alpha:0.05].CGColor);
+        CGContextFillEllipseInRect(ctx, CGRectMake(1.8, 1.8, 1, 1));
         UIImage *tile = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
         color = [UIColor colorWithPatternImage:tile];
     });
     return color;
+}
+
+UIView *IRCCGroove(CGRect frame) {
+    frame.size.height = 2;
+    UIView *groove = [[UIView alloc] initWithFrame:frame];
+    UIView *dark = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frame.size.width, 1)];
+    dark.backgroundColor = [UIColor colorWithWhite:0 alpha:0.55];
+    UIView *light = [[UIView alloc] initWithFrame:CGRectMake(0, 1, frame.size.width, 1)];
+    light.backgroundColor = [UIColor colorWithWhite:1 alpha:0.09];
+    [groove addSubview:dark];
+    [groove addSubview:light];
+    return groove;
 }
 
 static void IRCCGradient(CGContextRef ctx, CGRect rect, const CGFloat *colors) {
@@ -201,12 +246,47 @@ static void IRCCGradient(CGContextRef ctx, CGRect rect, const CGFloat *colors) {
     CGColorSpaceRelease(space);
 }
 
+UIImage *IRCCTrackImage(BOOL filled) {
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(11, 10), NO, 0);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGRect track = CGRectMake(0.5, 0.5, 10, 8);
+    UIBezierPath *capsule = [UIBezierPath bezierPathWithRoundedRect:track cornerRadius:4];
+    if (!filled) {
+        // Жёлоб утоплен в лён: светлая кромка снизу
+        [[UIColor colorWithWhite:1 alpha:0.12] setFill];
+        [[UIBezierPath bezierPathWithRoundedRect:CGRectOffset(track, 0, 1) cornerRadius:4] fill];
+    }
+    CGContextSaveGState(ctx);
+    [capsule addClip];
+    const CGFloat light[] = {0.93, 0.93, 0.94, 1, 0.66, 0.66, 0.68, 1};
+    const CGFloat dark[] = {0.06, 0.06, 0.07, 1, 0.21, 0.21, 0.22, 1};
+    IRCCGradient(ctx, track, filled ? light : dark);
+    CGContextRestoreGState(ctx);
+    [[UIColor colorWithWhite:0 alpha:0.6] setStroke];
+    capsule.lineWidth = 1;
+    [capsule stroke];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return [image resizableImageWithCapInsets:UIEdgeInsetsMake(0, 5, 0, 5)];
+}
+
 // Тень под кнопкой: заливаем форму с тенью, поверх потом рисуется сама кнопка
 static void IRCCDropShadow(CGContextRef ctx, UIBezierPath *shape) {
     CGContextSaveGState(ctx);
-    CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1), 2, [UIColor colorWithWhite:0 alpha:0.8].CGColor);
+    CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1), 2, [UIColor colorWithWhite:0 alpha:0.75].CGColor);
     [[UIColor colorWithWhite:0.5 alpha:1] setFill];
     [shape fill];
+    CGContextRestoreGState(ctx);
+}
+
+// Белый знак с тиснением: тёмная тень сверху, как надписи на чёрном стекле iOS 6
+static void IRCCDrawEmbossedGlyph(CGContextRef ctx, IRCCGlyph glyph, CGRect rect, UIColor *color, UIColor *shadow) {
+    CGContextSaveGState(ctx);
+    CGContextSetShadowWithColor(ctx, CGSizeMake(0, -1), 0, shadow.CGColor);
+    [color set];
+    CGContextBeginTransparencyLayer(ctx, NULL);
+    IRCCDrawGlyph(glyph, rect);
+    CGContextEndTransparencyLayer(ctx);
     CGContextRestoreGState(ctx);
 }
 
@@ -225,6 +305,7 @@ static void IRCCDropShadow(CGContextRef ctx, UIBezierPath *shape) {
     if ((self = [super initWithFrame:frame])) {
         self.opaque = NO;
         self.backgroundColor = [UIColor clearColor];
+        self.contentMode = UIViewContentModeRedraw;
     }
     return self;
 }
@@ -249,98 +330,68 @@ static void IRCCDropShadow(CGContextRef ctx, UIBezierPath *shape) {
     [self setNeedsDisplay];
 }
 
-// Скруглённый квадрат: серебристый ободок, внутри перфорированный металл или синий глянец
-- (void)drawSquare:(CGContextRef)ctx glyphRect:(CGRect)glyphRect {
+// Скруглённый квадрат: серая оправа, внутри тёмное текстурное поле или синий глянец
+- (void)drawSquare:(CGContextRef)ctx {
     CGRect outer = CGRectInset(self.bounds, 1.5, 1.5);
     outer.size.height -= 1;
-    CGFloat radius = MIN(outer.size.width, outer.size.height) * 0.2;
+    CGFloat radius = MIN(outer.size.width, outer.size.height) * 0.18;
     UIBezierPath *rim = [UIBezierPath bezierPathWithRoundedRect:outer cornerRadius:radius];
     IRCCDropShadow(ctx, rim);
 
     CGContextSaveGState(ctx);
     [rim addClip];
-    const CGFloat silver[] = {0.96, 0.96, 0.96, 1, 0.60, 0.60, 0.61, 1};
-    IRCCGradient(ctx, outer, silver);
+    const CGFloat frame[] = {0.86, 0.86, 0.87, 1, 0.52, 0.52, 0.54, 1};
+    IRCCGradient(ctx, outer, frame);
     CGContextRestoreGState(ctx);
 
     CGRect inner = CGRectInset(outer, 2.5, 2.5);
-    UIBezierPath *field = [UIBezierPath bezierPathWithRoundedRect:inner cornerRadius:radius - 2];
+    UIBezierPath *field = [UIBezierPath bezierPathWithRoundedRect:inner cornerRadius:MAX(radius - 2, 1)];
     CGContextSaveGState(ctx);
     [field addClip];
     if (self.on) {
         const CGFloat blue[] = {0.45, 0.72, 0.99, 1, 0.11, 0.40, 0.86, 1};
         IRCCGradient(ctx, inner, blue);
-        const CGFloat gloss[] = {1, 1, 1, 0.30, 1, 1, 1, 0.06};
-        IRCCGradient(ctx, CGRectMake(inner.origin.x, inner.origin.y, inner.size.width, inner.size.height / 2), gloss);
     } else {
-        [IRCCPerforatedColor() setFill];
+        const CGFloat grey[] = {0.35, 0.35, 0.37, 1, 0.17, 0.17, 0.18, 1};
+        IRCCGradient(ctx, inner, grey);
+        [IRCCMeshColor() setFill];
         CGContextFillRect(ctx, inner);
-        const CGFloat lift[] = {1, 1, 1, 0.14, 1, 1, 1, 0};
-        IRCCGradient(ctx, inner, lift);
     }
-    // Поле утоплено в ободок: тень по верхнему краю
-    const CGFloat inset[] = {0, 0, 0, 0.55, 0, 0, 0, 0};
-    IRCCGradient(ctx, CGRectMake(inner.origin.x, inner.origin.y, inner.size.width, 5), inset);
+    // Глянец сверху и тень по верхнему краю: поле утоплено в оправу
+    const CGFloat gloss[] = {1, 1, 1, self.on ? 0.30 : 0.10, 1, 1, 1, 0.02};
+    IRCCGradient(ctx, CGRectMake(inner.origin.x, inner.origin.y, inner.size.width, inner.size.height / 2), gloss);
+    const CGFloat inset[] = {0, 0, 0, 0.5, 0, 0, 0, 0};
+    IRCCGradient(ctx, CGRectMake(inner.origin.x, inner.origin.y, inner.size.width, 4), inset);
     if (self.highlighted) {
         [[UIColor colorWithWhite:0 alpha:0.3] setFill];
         CGContextFillRect(ctx, inner);
     }
     CGContextRestoreGState(ctx);
-    [[UIColor colorWithWhite:0 alpha:0.5] setStroke];
+    [[UIColor colorWithWhite:0 alpha:0.55] setStroke];
     field.lineWidth = 1;
     [field stroke];
 
-    // Знак с тиснением: тёмная тень сверху, как надписи на чёрном стекле iOS 6
-    CGContextSaveGState(ctx);
-    UIColor *shadow = self.on ? [UIColor colorWithRed:0 green:0.12 blue:0.4 alpha:0.6] : [UIColor colorWithWhite:0 alpha:0.8];
-    CGContextSetShadowWithColor(ctx, CGSizeMake(0, -1), 0, shadow.CGColor);
-    [[UIColor colorWithWhite:1 alpha:self.on ? 1 : 0.85] set];
-    CGContextBeginTransparencyLayer(ctx, NULL);
-    IRCCDrawGlyph(self.glyph, glyphRect);
-    CGContextEndTransparencyLayer(ctx);
-    CGContextRestoreGState(ctx);
+    CGFloat size = MIN(inner.size.width, inner.size.height) * 0.56;
+    CGRect glyphRect = CGRectMake(CGRectGetMidX(inner) - size / 2, CGRectGetMidY(inner) - size / 2, size, size);
+    UIColor *shadow = self.on ? [UIColor colorWithRed:0 green:0.12 blue:0.4 alpha:0.6] : [UIColor colorWithWhite:0 alpha:0.85];
+    IRCCDrawEmbossedGlyph(ctx, self.glyph, glyphRect, [UIColor colorWithWhite:1 alpha:self.on ? 1 : 0.88], shadow);
 }
 
-// Круглая серебристая кнопка с тёмным знаком
-- (void)drawMedia:(CGContextRef)ctx glyphRect:(CGRect)glyphRect {
-    CGRect circle = CGRectInset(self.bounds, 2, 2);
-    circle.size.height -= 1;
-    circle.size.width = circle.size.height = MIN(circle.size.width, circle.size.height);
-    circle.origin.x = CGRectGetMidX(self.bounds) - circle.size.width / 2;
-    UIBezierPath *disc = [UIBezierPath bezierPathWithOvalInRect:circle];
-    IRCCDropShadow(ctx, disc);
-
-    CGContextSaveGState(ctx);
-    [disc addClip];
-    const CGFloat silver[] = {0.97, 0.97, 0.97, 1, 0.68, 0.68, 0.70, 1};
-    const CGFloat pressed[] = {0.78, 0.78, 0.79, 1, 0.52, 0.52, 0.54, 1};
-    IRCCGradient(ctx, circle, self.highlighted ? pressed : silver);
-    const CGFloat gloss[] = {1, 1, 1, 0.45, 1, 1, 1, 0.05};
-    IRCCGradient(ctx, CGRectMake(circle.origin.x, circle.origin.y, circle.size.width, circle.size.height / 2), gloss);
-    CGContextRestoreGState(ctx);
-    [[UIColor colorWithWhite:0 alpha:0.45] setStroke];
-    disc.lineWidth = 1;
-    [disc stroke];
-
-    // Тёмный знак, вдавленный в металл: светлая тень снизу
-    CGContextSaveGState(ctx);
-    CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1), 0, [UIColor colorWithWhite:1 alpha:0.7].CGColor);
-    [[UIColor colorWithWhite:0.2 alpha:1] set];
-    CGContextBeginTransparencyLayer(ctx, NULL);
-    IRCCDrawGlyph(self.glyph, glyphRect);
-    CGContextEndTransparencyLayer(ctx);
-    CGContextRestoreGState(ctx);
+// Только знак, как кнопки музыки у Auxo и в панели многозадачности iOS 6
+- (void)drawPlain:(CGContextRef)ctx {
+    CGRect bounds = self.bounds;
+    CGFloat size = MIN(bounds.size.width, bounds.size.height) * 0.7;
+    CGRect glyphRect = CGRectMake(CGRectGetMidX(bounds) - size / 2, CGRectGetMidY(bounds) - size / 2, size, size);
+    IRCCDrawEmbossedGlyph(ctx, self.glyph, glyphRect, [UIColor colorWithWhite:1 alpha:self.highlighted ? 0.45 : 0.95],
+                          [UIColor colorWithWhite:0 alpha:0.8]);
 }
 
 - (void)drawRect:(CGRect)rect {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
-    CGRect bounds = self.bounds;
-    CGFloat glyphSize = MIN(bounds.size.width, bounds.size.height) * (self.style == IRCCButtonStyleMedia ? 0.42 : 0.46);
-    CGRect glyphRect = CGRectMake(CGRectGetMidX(bounds) - glyphSize / 2, CGRectGetMidY(bounds) - glyphSize / 2 - 0.5, glyphSize, glyphSize);
-    if (self.style == IRCCButtonStyleMedia)
-        [self drawMedia:ctx glyphRect:glyphRect];
+    if (self.style == IRCCButtonStylePlain)
+        [self drawPlain:ctx];
     else
-        [self drawSquare:ctx glyphRect:glyphRect];
+        [self drawSquare:ctx];
 }
 
 @end

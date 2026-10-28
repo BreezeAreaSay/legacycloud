@@ -1,8 +1,9 @@
 // Пункт управления (iOS 7) в стиле iOS 6.
 //
-// Раскладка iOS 7, материалы — по концепту с r/jailbreak: перфорированный тёмный металл, квадратные
-// кнопки с серебристым ободком, синий глянец у включённых, круглые серебристые кнопки музыки.
-// Ползунки родные: UISlider и громкость MPVolumeView (с выбором вывода звука, например на AirPods).
+// Раскладка iOS 7, материалы — как у Auxo: серый лён с желобками между секциями, квадратные кнопки
+// в серой оправе, синий глянец у включённых, кнопки музыки — белые тиснёные знаки.
+// Ползунки родные: UISlider и громкость MPVolumeView (с выбором вывода звука, например на AirPods),
+// только с тёмными дорожками, как у Auxo.
 //
 // Жест даёт Activator: в SpringBoard iOS 6 нет открытого способа добавить свой системный жест,
 // а прозрачное окно у края поверх программ касаний не получает. Пункт управления — действие
@@ -285,6 +286,7 @@ static void IRLaunch(NSString *identifier) {
     UILabel *_title;
     UILabel *_album;
     IRCCButton *_playPause;
+    BOOL _landscape;
 }
 
 static UILabel *IRCCLabel(void) {
@@ -312,14 +314,15 @@ static void IRCCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
 }
 
 + (CGFloat)heightForLandscape:(BOOL)landscape {
-    return landscape ? 152 : 356;
+    return landscape ? 120 : 356;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame landscape:(BOOL)landscape {
     if (!(self = [super initWithFrame:frame]))
         return nil;
     CGFloat width = frame.size.width;
-    self.backgroundColor = IRCCPerforatedColor();
+    _landscape = landscape;
+    self.backgroundColor = IRCCLinenColor();
     self.clipsToBounds = NO;
 
     // Тень сверху и светлый кант
@@ -351,9 +354,11 @@ static void IRCCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     _brightness = [[UISlider alloc] initWithFrame:CGRectZero];
     _brightness.minimumValueImage = IRCCGlyphImage(IRCCGlyphSunSmall, 18, [UIColor colorWithWhite:1 alpha:0.8]);
     _brightness.maximumValueImage = IRCCGlyphImage(IRCCGlyphSunLarge, 22, [UIColor colorWithWhite:1 alpha:0.8]);
+    [_brightness setMinimumTrackImage:IRCCTrackImage(YES) forState:UIControlStateNormal];
+    [_brightness setMaximumTrackImage:IRCCTrackImage(NO) forState:UIControlStateNormal];
     [_brightness addTarget:self action:@selector(brightnessChanged:) forControlEvents:UIControlEventValueChanged];
 
-    // Музыка: исполнитель, название, альбом и круглые серебристые кнопки
+    // Музыка: исполнитель, название, альбом и белые тиснёные кнопки
     _artist = IRCCLabel();
     _artist.textColor = [UIColor colorWithWhite:0.62 alpha:1];
     _title = IRCCLabel();
@@ -363,10 +368,14 @@ static void IRCCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     const IRCCGlyph mediaGlyphs[] = {IRCCGlyphPrevious, IRCCGlyphPlay, IRCCGlyphNext};
     NSMutableArray *media = [NSMutableArray array];
     for (int i = 0; i < 3; i++) // tag: -1 назад, 0 пауза, 1 вперёд
-        [media addObject:IRCCMakeButton(mediaGlyphs[i], IRCCButtonStyleMedia, i - 1, self, @selector(mediaTapped:))];
+        [media addObject:IRCCMakeButton(mediaGlyphs[i], IRCCButtonStylePlain, i - 1, self, @selector(mediaTapped:))];
     _media = media;
     _playPause = media[1];
     _volume = [[MPVolumeView alloc] initWithFrame:CGRectZero];
+    if ([_volume respondsToSelector:@selector(setMinimumVolumeSliderImage:forState:)]) {
+        [_volume setMinimumVolumeSliderImage:IRCCTrackImage(YES) forState:UIControlStateNormal];
+        [_volume setMaximumVolumeSliderImage:IRCCTrackImage(NO) forState:UIControlStateNormal];
+    }
 
     // Фонарик и быстрые программы
     IRCCButton *flashlight = IRCCMakeButton(IRCCGlyphFlashlight, IRCCButtonStyleSquare, IRCCFlashlight, self, @selector(toggleTapped:));
@@ -387,42 +396,42 @@ static void IRCCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     return self;
 }
 
-// Портрет — как в iOS 7 и в концепте: всё одной колонкой
+// Портрет — как в iOS 7: всё одной колонкой, секции разделены желобками, как у Auxo
 - (void)layoutPortrait:(CGFloat)width {
     IRCCLayoutRow(_switches, CGRectMake(0, 20, width, 52), 52);
-    _brightness.frame = CGRectMake(16, 88, width - 32, 23);
+    _brightness.frame = CGRectMake(16, 86, width - 32, 23);
+    [self addSubview:IRCCGroove(CGRectMake(10, 120, width - 20, 2))];
     _artist.font = [UIFont boldSystemFontOfSize:13];
-    _artist.frame = CGRectMake(20, 122, width - 40, 16);
+    _artist.frame = CGRectMake(20, 129, width - 40, 16);
     _title.font = [UIFont boldSystemFontOfSize:18];
-    _title.frame = CGRectMake(20, 138, width - 40, 22);
+    _title.frame = CGRectMake(20, 145, width - 40, 22);
     _album.font = [UIFont boldSystemFontOfSize:11];
-    _album.frame = CGRectMake(20, 161, width - 40, 15);
+    _album.frame = CGRectMake(20, 168, width - 40, 15);
     [_media enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
-        button.frame = CGRectMake(width / 2 - 25 + ((int)i - 1) * 76, 184, 50, 50);
+        button.frame = CGRectMake(width / 2 - 30 + ((int)i - 1) * 80, 188, 60, 44);
     }];
-    _volume.frame = CGRectMake(20, 248, width - 40, 23);
-    IRCCLayoutRow(_apps, CGRectMake(0, 282, width, 60), 60);
+    _volume.frame = CGRectMake(20, 238, width - 40, 23);
+    [self addSubview:IRCCGroove(CGRectMake(10, 272, width - 20, 2))];
+    IRCCLayoutRow(_apps, CGRectMake(0, 284, width, 58), 58);
 }
 
-// Ландшафт — как в iOS 7: переключатели и яркость слева, музыка в середине, программы справа
+// Ландшафт — как iOS 7 на iPad: сверху в один ряд музыка, переключатели и программы,
+// под музыкой строка «исполнитель — песня», внизу громкость слева и яркость справа
 - (void)layoutLandscape:(CGFloat)width {
-    CGFloat left = 200, right = 104, middle = width - left - right;
-    IRCCLayoutRow(_switches, CGRectMake(0, 20, left, 34), 34);
-    _brightness.frame = CGRectMake(12, 74, left - 24, 23);
-    _artist.font = [UIFont boldSystemFontOfSize:12];
-    _artist.frame = CGRectMake(left, 16, middle, 15);
-    _title.font = [UIFont boldSystemFontOfSize:15];
-    _title.frame = CGRectMake(left, 31, middle, 19);
-    _album.font = [UIFont boldSystemFontOfSize:10];
-    _album.frame = CGRectMake(left, 50, middle, 13);
+    CGFloat music = 142, switches = 190, apps = width - music - switches;
     [_media enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
-        button.frame = CGRectMake(left + middle / 2 - 20 + ((int)i - 1) * 54, 66, 40, 40);
+        button.frame = CGRectMake(music / 2 - 20 + ((int)i - 1) * 44, 16, 40, 32);
     }];
-    _volume.frame = CGRectMake(left + 6, 116, middle - 12, 23);
-    // Программы — квадрат 2×2
-    [_apps enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
-        button.frame = CGRectMake(width - right + 8 + (i % 2) * 48, 20 + (i / 2) * 48, 40, 40);
-    }];
+    _title.font = [UIFont boldSystemFontOfSize:12];
+    _title.frame = CGRectMake(6, 52, music - 12, 15);
+    _title.lineBreakMode = NSLineBreakByTruncatingTail;
+    _artist.hidden = YES;
+    _album.hidden = YES;
+    IRCCLayoutRow(_switches, CGRectMake(music, 16, switches, 32), 32);
+    IRCCLayoutRow(_apps, CGRectMake(music + switches, 16, apps, 32), 32);
+    [self addSubview:IRCCGroove(CGRectMake(10, 74, width - 20, 2))];
+    _volume.frame = CGRectMake(12, 85, width / 2 - 18, 23);
+    _brightness.frame = CGRectMake(width / 2 + 6, 85, width / 2 - 18, 23);
 }
 
 - (void)refresh {
@@ -433,15 +442,32 @@ static void IRCCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
 
     SBMediaController *media = [objc_getClass("SBMediaController") sharedInstance];
     BOOL hasTrack = [media respondsToSelector:@selector(hasTrack)] && [media hasTrack];
-    _artist.text = hasTrack ? ([media nowPlayingArtist] ?: @"") : @"";
-    _title.text = hasTrack ? ([media nowPlayingTitle] ?: @"") : @"Музыка";
+    NSString *artist = hasTrack ? ([media nowPlayingArtist] ?: @"") : @"";
+    NSString *title = hasTrack ? ([media nowPlayingTitle] ?: @"") : @"Музыка";
+    _playPause.glyph = (hasTrack && [media isPlaying]) ? IRCCGlyphPause : IRCCGlyphPlay;
+    if (_landscape) {
+        // Одна строка: исполнитель серым, песня белым
+        NSMutableAttributedString *line = [[NSMutableAttributedString alloc] init];
+        if (artist.length)
+            [line appendAttributedString:[[NSAttributedString alloc] initWithString:[artist stringByAppendingString:@" "]
+                                                                         attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:12],
+                                                                                      NSForegroundColorAttributeName: [UIColor colorWithWhite:0.62 alpha:1]}]];
+        [line appendAttributedString:[[NSAttributedString alloc] initWithString:title
+                                                                     attributes:@{NSFontAttributeName: _title.font,
+                                                                                  NSForegroundColorAttributeName: [UIColor whiteColor]}]];
+        _title.attributedText = line;
+        _title.textAlignment = NSTextAlignmentCenter;
+        _title.lineBreakMode = NSLineBreakByTruncatingTail;
+        return;
+    }
+    _artist.text = artist;
+    _title.text = title;
     // Альбом капителью с разрядкой, как подписи на стекле iOS 6
     NSString *album = hasTrack && [media respondsToSelector:@selector(nowPlayingAlbum)] ? [[media nowPlayingAlbum] uppercaseString] : nil;
     _album.attributedText = [[NSAttributedString alloc] initWithString:album ?: @""
                                                             attributes:@{NSKernAttributeName: @2, NSFontAttributeName: _album.font,
                                                                          NSForegroundColorAttributeName: _album.textColor}];
     _album.textAlignment = NSTextAlignmentCenter;
-    _playPause.glyph = (hasTrack && [media isPlaying]) ? IRCCGlyphPause : IRCCGlyphPlay;
 }
 
 - (void)toggleTapped:(IRCCButton *)button {

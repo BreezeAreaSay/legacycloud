@@ -1,6 +1,6 @@
 // Пункт управления: знаки и материалы в стиле iOS 6.
-// Материалы — как в концепте с r/jailbreak: перфорированный тёмный металл, серебристый ободок,
-// синий глянец у включённых кнопок, круглые серебристые кнопки музыки.
+// Материалы — как у Auxo: серый лён, квадратные кнопки в серой оправе с текстурным полем,
+// синий глянец у включённых, кнопки музыки — просто белые тиснёные знаки.
 
 #pragma once
 
@@ -31,12 +31,18 @@ void IRCCDrawGlyph(IRCCGlyph glyph, CGRect rect);
 // Картинка знака: для ползунка яркости, иконки в Activator и т. п.
 UIImage *IRCCGlyphImage(IRCCGlyph glyph, CGFloat size, UIColor *color);
 
-// Перфорированный тёмный металл — фон панели.
-UIColor *IRCCPerforatedColor(void);
+// Серый лён — фон панели.
+UIColor *IRCCLinenColor(void);
+
+// Желобок между секциями: тёмная линия и светлая под ней. Высота 2 пт.
+UIView *IRCCGroove(CGRect frame);
+
+// Дорожки ползунка: светлая заливка до бегунка и тёмный жёлоб после него.
+UIImage *IRCCTrackImage(BOOL filled);
 
 typedef enum {
-    IRCCButtonStyleSquare, // скруглённый квадрат с серебристым ободком: переключатели и программы
-    IRCCButtonStyleMedia,  // круглая серебристая кнопка с тёмным знаком: музыка
+    IRCCButtonStyleSquare, // скруглённый квадрат в серой оправе: переключатели и программы
+    IRCCButtonStylePlain,  // только белый тиснёный знак: кнопки музыки
 } IRCCButtonStyle;
 
 @interface IRCCButton : UIControl

@@ -47,8 +47,10 @@ https://breezeareasay.github.io/legacycloud/
 `https://breezeareasay.github.io/legacycloud/debs/` и установи вручную.
 
 ### Включить публикацию (один раз)
-1. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
-2. Перезапусти последнюю сборку во вкладке Actions или сделай новый push.
+1. На бесплатном тарифе GitHub Pages работают только у **публичных** репозиториев:
+   Settings → General → Danger Zone → Change visibility → Public.
+2. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+3. Перезапусти последнюю сборку во вкладке Actions или сделай новый push.
 
 Публикуется сборка из ветки по умолчанию; сборки других веток и пулл-реквестов только проверяются.
 

@@ -239,7 +239,14 @@ static void hook_configure(SBLowPowerAlertItem *self, SEL _cmd, BOOL configure, 
     UIAlertView *sheet = [self alertSheet];
     if (![sheet isKindOfClass:[UIAlertView class]])
         return;
-    NSInteger index = [sheet addButtonWithTitle:@"Энергосбережение"];
+    // Алерт настраивается заново после разблокировки — не добавляем кнопку второй раз.
+    NSString *title = @"Энергосбережение";
+    NSInteger index = -1;
+    for (NSInteger i = 0; i < sheet.numberOfButtons; i++)
+        if ([[sheet buttonTitleAtIndex:i] isEqualToString:title])
+            index = i;
+    if (index < 0)
+        index = [sheet addButtonWithTitle:title];
     objc_setAssociatedObject(self, kIRButtonIndexKey, @(index), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 

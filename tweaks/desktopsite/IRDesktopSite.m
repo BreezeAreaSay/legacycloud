@@ -4,6 +4,7 @@
 
 #import "IRShared.h"
 #import "IRPrivate.h"
+#include <dlfcn.h>
 
 // Safari 6 для OS X на том же движке WebKit, что и в iOS 6: сайты не получат обещаний, которые движок не выполнит.
 #define IR_DESKTOP_UA @"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/536.29.13 (KHTML, like Gecko) Version/6.0.4 Safari/536.29.13"
@@ -41,10 +42,6 @@ static WebView *IRActiveWebView(void) {
     return [webView respondsToSelector:@selector(setCustomUserAgent:)] ? webView : nil;
 }
 
-static BOOL IRIsDesktop(WebView *webView) {
-    return [[webView customUserAgent] isEqualToString:IR_DESKTOP_UA];
-}
-
 // m.example.com → example.com: многие сайты сами переадресуют на мобильный поддомен.
 static NSURL *IRDesktopURL(NSURL *url) {
     NSString *host = url.host;
@@ -58,6 +55,38 @@ static NSURL *IRDesktopURL(NSURL *url) {
             return [NSURL URLWithString:[string stringByReplacingCharactersInRange:range withString:desktopHost]];
     }
     return url;
+}
+
+// WebKit в iOS живёт в отдельном веб-потоке: из главного потока к WebView и WebFrame можно
+// обращаться только под WebThreadLock() — так делают UIKit и Safari. Блокировка снимается сама
+// в конце текущего витка главного цикла.
+static void IRWebThreadLock(void) {
+    static void (*lock)(void);
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        lock = (void (*)(void))dlsym(RTLD_DEFAULT, "WebThreadLock");
+    });
+    if (lock)
+        lock();
+}
+
+static BOOL IRIsDesktop(WebView *webView) {
+    IRWebThreadLock();
+    return [[webView customUserAgent] isEqualToString:IR_DESKTOP_UA];
+}
+
+static void IRToggleDesktop(WebView *webView) {
+    IRWebThreadLock();
+    WebFrame *frame = [webView mainFrame];
+    if (!frame)
+        return;
+    BOOL desktop = ![[webView customUserAgent] isEqualToString:IR_DESKTOP_UA];
+    [webView setCustomUserAgent:desktop ? IR_DESKTOP_UA : nil];
+    NSURL *url = [[[frame dataSource] request] URL];
+    if (desktop && url.host)
+        [frame loadRequest:[NSURLRequest requestWithURL:IRDesktopURL(url)]];
+    else
+        [frame reload];
 }
 
 #pragma mark - Пункт меню
@@ -106,17 +135,12 @@ static NSURL *IRDesktopURL(NSURL *url) {
 
 - (void)performActivity {
     WebView *webView = _webView;
-    WebFrame *frame = [webView mainFrame];
-    if (webView && frame) {
-        BOOL desktop = !IRIsDesktop(webView);
-        [webView setCustomUserAgent:desktop ? IR_DESKTOP_UA : nil];
-        NSURL *url = [[[frame dataSource] request] URL];
-        if (desktop && url.host)
-            [frame loadRequest:[NSURLRequest requestWithURL:IRDesktopURL(url)]];
-        else
-            [frame reload];
-    }
     [self activityDidFinish:YES];
+    // Меню «Поделиться» ещё закрывается — страницу трогаем на следующем витке, когда Safari вернулся к вкладке.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (webView)
+            IRToggleDesktop(webView);
+    });
 }
 
 @end

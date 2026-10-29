@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.newsash
 Name: New App Sash
-Version: 0.5.1
+Version: 0.5.2
 Architecture: iphoneos-arm
 Description: The iOS 6 New sash on every newly installed app, including ipa and Cydia apps
 Maintainer: SmokinInTheWoods

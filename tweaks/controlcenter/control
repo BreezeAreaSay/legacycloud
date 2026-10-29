@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.controlcenter
 Name: Control Center
-Version: 0.5.1
+Version: 0.5.2
 Architecture: iphoneos-arm
 Description: Control Center (iOS 7) in skeuomorphic style, opened with an Activator gesture
 Maintainer: SmokinInTheWoods

@@ -10,13 +10,25 @@
 //
 // Icons: the background of an icon turns into black glass with the iOS 6 gloss on it, a white symbol on a
 // colored background takes that color (green Messages bubble on black), dark ink on a light background
-// turns light. An icon that is a whole picture is only dimmed; an icon that is dark already stays.
+// turns light. The icon is taken apart from the file the app ships, before the gloss; the finished icon
+// gives only its shape. An icon that is a whole picture, or dark already, stays as it is.
 
 #import "S4EShared.h"
 #import "S4EDarkMode.h"
 
 @interface SBApplication : NSObject
 - (NSString *)bundleIdentifier;
+- (NSString *)path;
+@end
+
+@interface SBApplicationIcon : NSObject
+- (SBApplication *)application;
+@end
+
+@interface SBMappedImageCache : NSObject
++ (instancetype)persistentCache;
++ (instancetype)sessionCache;
+- (void)removeAllObjects;
 @end
 
 @interface SBIcon : NSObject
@@ -155,54 +167,30 @@ static id hook_defaultImage(SBApplication *self, SEL _cmd, char *flag, float sca
 
 #pragma mark - Icons (iOS 18)
 
-static UIImage *S4EDarkIcon(UIImage *icon) {
-    if (![icon isKindOfClass:[UIImage class]] || !icon.CGImage)
-        return nil;
-    int w, h;
-    uint8_t *px;
-    CGContextRef context = S4EBitmap(icon.CGImage, &w, &h, &px);
-    if (!context)
-        return nil;
-    UIImage *result = nil;
-    float *bg = calloc((size_t)h * 3, sizeof(float)), *low = calloc((size_t)h * 3, sizeof(float)), *high = calloc((size_t)h * 3, sizeof(float));
-    int *sampled = calloc((size_t)h, sizeof(int));
-    if (!bg || !low || !high || !sampled || w < 20 || h < 20 || w > 512 || h > 512)
-        goto done;
-
-    // The opaque body of the icon
-    int x0 = w, x1 = -1, y0 = h, y1 = -1;
-    for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++)
-            if (px[(y * w + x) * 4 + 3] >= 250) {
-                x0 = MIN(x0, x);
-                x1 = MAX(x1, x);
-                y0 = MIN(y0, y);
-                y1 = MAX(y1, y);
-            }
-    if (x1 - x0 < 16 || y1 - y0 < 16)
-        goto done;
-    int bw = x1 - x0 + 1, bh = y1 - y0 + 1, band = MAX(2, bw / 10);
-
-    // The background, row by row, from strips along the left and right edges (rounded corners included):
-    // the gradient and the gloss run from top to bottom
+// The background of an icon, row by row, from strips along the left and right edges of its opaque part
+// (src is bw × bh, unpremultiplied, alpha in [3]); NO if there is too little of it
+static BOOL S4EIconBackground(const uint8_t *src, int bw, int bh, float *bg, float *average, BOOL *uniform) {
+    int band = MAX(2, bw / 10), rows = 0, deviationCount = 0;
     double spread = 0, deviation = 0;
-    int rows = 0, deviationCount = 0;
-    for (int y = y0; y <= y1; y++) {
+    int *sampled = calloc((size_t)bh, sizeof(int));
+    if (!sampled)
+        return NO;
+    for (int y = 0; y < bh; y++) {
         int left = -1, right = -1;
-        for (int x = x0; x <= x1 && left < 0; x++)
-            if (px[(y * w + x) * 4 + 3] >= 250)
+        for (int x = 0; x < bw && left < 0; x++)
+            if (src[(y * bw + x) * 4 + 3] >= 250)
                 left = x;
-        for (int x = x1; x >= x0 && right < 0; x--)
-            if (px[(y * w + x) * 4 + 3] >= 250)
+        for (int x = bw - 1; x >= 0 && right < 0; x--)
+            if (src[(y * bw + x) * 4 + 3] >= 250)
                 right = x;
         if (left < 0 || right - left < 2 * band + 6)
             continue;
         float side[2][3] = {{0}};
         int count[2] = {0};
         for (int s = 0; s < 2; s++) {
-            int from = s == 0 ? left + 2 : right - 1 - band;
+            int from = s == 0 ? left + 1 : right - band;
             for (int x = from; x < from + band; x++) {
-                uint8_t *p = px + (y * w + x) * 4;
+                const uint8_t *p = src + (y * bw + x) * 4;
                 if (p[3] < 250)
                     continue;
                 for (int c = 0; c < 3; c++)
@@ -217,12 +205,10 @@ static UIImage *S4EDarkIcon(UIImage *icon) {
             bg[y * 3 + c] = (l + r) / 2;
             spread += fabsf(l - r);
         }
-        sampled[y] = 1;
-        rows++;
         for (int s = 0; s < 2; s++) {
-            int from = s == 0 ? left + 2 : right - 1 - band;
+            int from = s == 0 ? left + 1 : right - band;
             for (int x = from; x < from + band; x += 2) {
-                uint8_t *p = px + (y * w + x) * 4;
+                const uint8_t *p = src + (y * bw + x) * 4;
                 if (p[3] < 250)
                     continue;
                 int worst = 0;
@@ -232,112 +218,211 @@ static UIImage *S4EDarkIcon(UIImage *icon) {
                 deviationCount++;
             }
         }
+        sampled[y] = 1;
+        rows++;
     }
-    if (rows < bh / 2 || !deviationCount)
+    BOOL enough = rows >= bh / 2 && deviationCount > 0;
+    if (enough) {
+        // Rows without a sample (the rounded top and bottom) take the nearest one
+        int first = 0;
+        while (!sampled[first])
+            first++;
+        for (int y = 0, last = first; y < bh; y++) {
+            if (sampled[y])
+                last = y;
+            else
+                memcpy(bg + y * 3, bg + last * 3, 3 * sizeof(float));
+        }
+        average[0] = average[1] = average[2] = 0;
+        for (int y = 0; y < bh; y++)
+            for (int c = 0; c < 3; c++)
+                average[c] += bg[y * 3 + c] / bh;
+        *uniform = spread / (rows * 3) < 22 && deviation / deviationCount < 26;
+    }
+    free(sampled);
+    return enough;
+}
+
+// The icon file the app ships, before iOS rounds it and puts the gloss on: there the symbol stands apart
+// from the background even at the top, where the gloss of the finished icon is almost white
+static UIImage *S4ERawIcon(id icon) {
+    // Icons that SpringBoard draws itself (the date on Calendar) are not their file
+    if (![icon isMemberOfClass:objc_getClass("SBApplicationIcon")] || ![icon respondsToSelector:@selector(application)])
+        return nil;
+    SBApplication *app = [icon application];
+    NSString *path = [app respondsToSelector:@selector(path)] ? [app path] : nil;
+    NSDictionary *info = path ? [NSDictionary dictionaryWithContentsOfFile:[path stringByAppendingPathComponent:@"Info.plist"]] : nil;
+    if (![info isKindOfClass:[NSDictionary class]])
+        return nil;
+    NSMutableArray *names = [NSMutableArray array];
+    NSDictionary *icons = info[@"CFBundleIcons"];
+    NSDictionary *primary = [icons isKindOfClass:[NSDictionary class]] ? icons[@"CFBundlePrimaryIcon"] : nil;
+    for (id list in @[[primary isKindOfClass:[NSDictionary class]] ? primary[@"CFBundleIconFiles"] ?: @[] : @[],
+                      info[@"CFBundleIconFiles"] ?: @[], info[@"CFBundleIconFile"] ?: @[], @[@"Icon", @"icon"]]) {
+        for (id name in [list isKindOfClass:[NSArray class]] ? list : @[list])
+            if ([name isKindOfClass:[NSString class]] && [name length])
+                [names addObject:[name stringByDeletingPathExtension]];
+    }
+    UIImage *best = nil;
+    for (NSString *name in names)
+        for (NSString *suffix in @[@"@2x.png", @"@2x~iphone.png", @".png", @"~iphone.png"]) {
+            NSString *file = [path stringByAppendingPathComponent:[name stringByAppendingString:suffix]];
+            if (![[NSFileManager defaultManager] fileExistsAtPath:file])
+                continue;
+            UIImage *image = [UIImage imageWithData:[NSData dataWithContentsOfFile:file]];
+            if (image.CGImage && (!best || CGImageGetWidth(image.CGImage) > CGImageGetWidth(best.CGImage)))
+                best = image;
+        }
+    return best;
+}
+
+static UIImage *S4EDarkIcon(UIImage *icon, UIImage *raw) {
+    if (![icon isKindOfClass:[UIImage class]] || !icon.CGImage)
+        return nil;
+    int w, h;
+    uint8_t *px;
+    CGContextRef context = S4EBitmap(icon.CGImage, &w, &h, &px);
+    if (!context)
+        return nil;
+    UIImage *result = nil;
+    uint8_t *src = NULL;
+    float *bg = NULL, *low = NULL, *high = NULL;
+    if (w < 20 || h < 20 || w > 512 || h > 512)
         goto done;
-    // Rows without a sample (the very top and bottom) take the nearest one
-    int first = y0;
-    while (!sampled[first])
-        first++;
-    for (int y = y0, last = first; y <= y1; y++) {
-        if (sampled[y])
-            last = y;
-        else
-            memcpy(bg + y * 3, bg + last * 3, 3 * sizeof(float));
+
+    // The opaque body of the finished icon
+    int x0 = w, x1 = -1, y0 = h, y1 = -1;
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+            if (px[(y * w + x) * 4 + 3] >= 250) {
+                x0 = MIN(x0, x);
+                x1 = MAX(x1, x);
+                y0 = MIN(y0, y);
+                y1 = MAX(y1, y);
+            }
+    if (x1 - x0 < 16 || y1 - y0 < 16)
+        goto done;
+    int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+
+    // What is taken apart: the app's own file drawn over the body, or the finished icon itself
+    src = calloc((size_t)bw * bh, 4);
+    bg = calloc((size_t)bh * 3, sizeof(float));
+    low = calloc((size_t)bh * 3, sizeof(float));
+    high = calloc((size_t)bh * 3, sizeof(float));
+    if (!src || !bg || !low || !high)
+        goto done;
+    BOOL fromFile = NO;
+    if (raw.CGImage) {
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        CGContextRef rawContext = CGBitmapContextCreate(src, bw, bh, 8, bw * 4, space, kCGImageAlphaPremultipliedLast);
+        CGColorSpaceRelease(space);
+        if (rawContext) {
+            CGContextSetInterpolationQuality(rawContext, kCGInterpolationHigh);
+            CGContextDrawImage(rawContext, CGRectMake(0, 0, bw, bh), raw.CGImage);
+            CGContextRelease(rawContext);
+            fromFile = YES;
+        }
     }
-    float average[3] = {0};
-    for (int y = y0; y <= y1; y++)
-        for (int c = 0; c < 3; c++)
-            average[c] += bg[y * 3 + c] / bh;
+    if (!fromFile)
+        for (int y = 0; y < bh; y++)
+            memcpy(src + (size_t)y * bw * 4, px + ((size_t)(y + y0) * w + x0) * 4, (size_t)bw * 4);
+    for (size_t i = 0; i < (size_t)bw * bh; i++) {
+        uint8_t *p = src + i * 4;
+        if (p[3] && p[3] < 255) {
+            float unpremultiply = 255.0f / p[3];
+            for (int c = 0; c < 3; c++)
+                p[c] = (uint8_t)MIN(255, p[c] * unpremultiply);
+        }
+    }
+
+    float average[3];
+    BOOL uniform = NO;
+    if (!S4EIconBackground(src, bw, bh, bg, average, &uniform))
+        goto done;
     float bgLuma = S4ELumaByte((int)average[0], (int)average[1], (int)average[2]) / 255.0f;
     float bgSaturation = S4ESaturation(average[0], average[1], average[2]);
-    if (bgLuma < 0.22f)
-        goto done; // dark already: Clock, Stocks, Camera
+    // Dark already (Clock, Stocks, Camera), or a whole picture: kept as it is
+    if (bgLuma < 0.22f || !uniform)
+        goto done;
 
-    BOOL uniform = spread / (rows * 3) < 22 && deviation / deviationCount < 26;
-    // What counts as background in a row: the range of the background over the rows a little above, since
-    // the gloss ends in an arc — lower in the middle than at the edges
-    int reach = MAX(2, bh * 3 / 10);
-    for (int y = y0; y <= y1; y++)
+    // On the finished icon the gloss ends in an arc, lower in the middle than at the edges: a row's
+    // background may be lighter in the middle, as light as a row a little above, but not much more
+    int reach = fromFile ? 0 : MAX(2, bh * 3 / 10), tolerance = fromFile ? 0 : 28;
+    for (int y = 0; y < bh; y++)
         for (int c = 0; c < 3; c++) {
-            low[y * 3 + c] = 255;
-            high[y * 3 + c] = 0;
-            for (int above = MAX(y0, y - reach); above <= MIN(y1, y + 2); above++) {
-                low[y * 3 + c] = MIN(low[y * 3 + c], bg[above * 3 + c]);
-                high[y * 3 + c] = MAX(high[y * 3 + c], bg[above * 3 + c]);
+            float own = bg[y * 3 + c], lo = own, hi = own;
+            for (int above = MAX(0, y - reach); above <= MIN(bh - 1, y + (fromFile ? 0 : 2)); above++) {
+                lo = MIN(lo, bg[above * 3 + c]);
+                hi = MAX(hi, bg[above * 3 + c]);
             }
+            low[y * 3 + c] = MAX(lo, own - tolerance);
+            high[y * 3 + c] = MIN(hi, own + tolerance);
         }
+
     // The symbol's new color and the tint of the glass come from the average background: a row's own
     // color would carry the old gloss boundary into them
     float averageLuma = MAX(1, S4ELumaByte((int)average[0], (int)average[1], (int)average[2]));
     for (int y = 0; y < h; y++) {
-        int row = MIN(MAX(y, y0), y1);
-        float v = (float)(row - y0) / bh;
-        float base = 50 - 38 * v; // black glass: 0.20 at the top, 0.05 at the bottom
+        int sy = MIN(MAX(y - y0, 0), bh - 1);
+        float v = (float)sy / bh;
+        float glass = 50 - 38 * v; // black glass: 0.20 at the top, 0.05 at the bottom
+        float rowLuma = S4ELumaByte((int)bg[sy * 3], (int)bg[sy * 3 + 1], (int)bg[sy * 3 + 2]) / 255.0f;
         for (int x = 0; x < w; x++) {
             uint8_t *p = px + (y * w + x) * 4;
             int a = p[3];
             if (!a)
                 continue;
-            float r = p[0] * 255.0f / a, g = p[1] * 255.0f / a, b = p[2] * 255.0f / a;
-            if (!uniform) {
-                // A whole picture: only dimmed, as iOS 18 does with icons it can't take apart
-                r *= 0.7f;
-                g *= 0.7f;
-                b *= 0.7f;
-            } else {
-                float d = 0, value[3] = {r, g, b};
-                for (int c = 0; c < 3; c++)
-                    d = MAX(d, MAX(low[row * 3 + c] - value[c], value[c] - high[row * 3 + c]));
-                float t = MIN(1, MAX(0, (d - 18) / 50));
-                t = t * t * (3 - 2 * t); // 0: background, 1: symbol
-                float nr = base + 0.10f * (average[0] - base), ng = base + 0.10f * (average[1] - base), nb = base + 0.10f * (average[2] - base);
-                float pl = S4ELumaByte((int)r, (int)g, (int)b) / 255.0f;
-                float sr = r, sg = g, sb = b;
-                if (bgSaturation > 0.25f && S4ESaturation(r, g, b) < 0.25f && pl > 0.55f) {
-                    // A white symbol on color takes the color, bright enough to stand out on black
-                    float k = MIN(3, MAX(1, 150 / averageLuma)) * pl;
-                    sr = MIN(255, average[0] * k);
-                    sg = MIN(255, average[1] * k);
-                    sb = MIN(255, average[2] * k);
-                } else if (bgLuma > 0.6f && pl < 0.45f) {
-                    // Dark ink on light paper turns light
-                    float dl = (0.94f - 0.55f * pl - pl) * 255;
-                    sr = MIN(255, MAX(0, r + dl));
-                    sg = MIN(255, MAX(0, g + dl));
-                    sb = MIN(255, MAX(0, b + dl));
-                }
-                r = nr + (sr - nr) * t;
-                g = ng + (sg - ng) * t;
-                b = nb + (sb - nb) * t;
+            const uint8_t *s = src + ((size_t)sy * bw + MIN(MAX(x - x0, 0), bw - 1)) * 4;
+            float r = s[0], g = s[1], b = s[2];
+            float d = 0, value[3] = {r, g, b};
+            for (int c = 0; c < 3; c++)
+                d = MAX(d, MAX(low[sy * 3 + c] - value[c], value[c] - high[sy * 3 + c]));
+            float t = MIN(1, MAX(0, (d - 18) / 50));
+            t = t * t * (3 - 2 * t); // 0: background, 1: symbol
+            float nr = glass + 0.10f * (average[0] - glass), ng = glass + 0.10f * (average[1] - glass), nb = glass + 0.10f * (average[2] - glass);
+            float pl = S4ELumaByte((int)r, (int)g, (int)b) / 255.0f;
+            float sr = r, sg = g, sb = b;
+            if (bgSaturation > 0.25f && S4ESaturation(r, g, b) < 0.25f && pl > 0.55f) {
+                // A white symbol on color takes the color, bright enough to stand out on black
+                float k = MIN(3, MAX(1, 150 / averageLuma)) * pl;
+                sr = MIN(255, average[0] * k);
+                sg = MIN(255, average[1] * k);
+                sb = MIN(255, average[2] * k);
+            } else if (rowLuma > 0.6f && pl < 0.45f) {
+                // Dark ink on light paper turns light
+                float dl = (0.94f - 0.55f * pl - pl) * 255;
+                sr = MIN(255, MAX(0, r + dl));
+                sg = MIN(255, MAX(0, g + dl));
+                sb = MIN(255, MAX(0, b + dl));
             }
+            r = nr + (sr - nr) * t;
+            g = ng + (sg - ng) * t;
+            b = nb + (sb - nb) * t;
             p[0] = (uint8_t)(S4EClampByte((int)r) * a / 255);
             p[1] = (uint8_t)(S4EClampByte((int)g) * a / 255);
             p[2] = (uint8_t)(S4EClampByte((int)b) * a / 255);
         }
     }
-    if (uniform) {
-        // The iOS 6 gloss over the top half: on black it reads as glass
-        float cx = x0 + bw / 2.0f, cy = y0 - 0.25f * bh, rx = 0.9f * bw, ry = 0.78f * bh, edge = cy + ry;
-        for (int y = y0; y < (int)edge && y < h; y++) {
-            float strength = 0.20f - 0.14f * (y - y0) / (edge - y0);
-            for (int x = x0; x <= x1; x++) {
-                float dx = (x - cx) / rx, dy = (y - cy) / ry;
-                if (dx * dx + dy * dy > 1)
-                    continue;
-                uint8_t *p = px + (y * w + x) * 4;
-                for (int c = 0; c < 3; c++)
-                    p[c] = (uint8_t)(p[c] + (p[3] - p[c]) * strength);
-            }
+    // The iOS 6 gloss over the top half: on black it reads as glass
+    float cx = x0 + bw / 2.0f, cy = y0 - 0.25f * bh, rx = 0.9f * bw, ry = 0.78f * bh, edge = cy + ry;
+    for (int y = y0; y < (int)edge && y < h; y++) {
+        float strength = 0.20f - 0.14f * (y - y0) / (edge - y0);
+        for (int x = x0; x <= x1; x++) {
+            float dx = (x - cx) / rx, dy = (y - cy) / ry;
+            if (dx * dx + dy * dy > 1)
+                continue;
+            uint8_t *p = px + (y * w + x) * 4;
+            for (int c = 0; c < 3; c++)
+                p[c] = (uint8_t)(p[c] + (p[3] - p[c]) * strength);
         }
     }
     result = S4EImageFromBitmap(context, icon);
 
 done:
+    free(src);
     free(bg);
     free(low);
     free(high);
-    free(sampled);
     CGContextRelease(context);
     free(px);
     return result;
@@ -346,7 +431,7 @@ done:
 static id (*orig_generateIconImage)(id, SEL, int);
 static id hook_generateIconImage(id self, SEL _cmd, int format) {
     id image = orig_generateIconImage(self, _cmd, format);
-    return gIconsDark ? (S4EDarkIcon(image) ?: image) : image;
+    return gIconsDark ? (S4EDarkIcon(image, S4ERawIcon(self)) ?: image) : image;
 }
 
 // Icons made in the background would skip the hook above
@@ -362,6 +447,13 @@ static NSString *S4EIconsNotePath(void) {
 }
 
 static void S4EReloadIcons(void) {
+    // SpringBoard also keeps finished icons in its mapped image caches, on disk too: without emptying them
+    // some icons would come back as they were made before
+    Class cache = objc_getClass("SBMappedImageCache");
+    if ([cache respondsToSelector:@selector(persistentCache)])
+        [[cache persistentCache] removeAllObjects];
+    if ([cache respondsToSelector:@selector(sessionCache)])
+        [[cache sessionCache] removeAllObjects];
     SBIconController *controller = [objc_getClass("SBIconController") sharedInstance];
     SBIconModel *model = [controller respondsToSelector:@selector(model)] ? [controller model] : nil;
     id icons = [model respondsToSelector:@selector(leafIcons)] ? [model leafIcons] : nil;
@@ -395,8 +487,7 @@ static BOOL gLaunched;
 static void S4EPublishAppearance(void) {
     NSDictionary *prefs = S4EPrefsRead() ?: @{};
     gDarkNow = S4EDMIsDark(prefs, [NSDate date]);
-    uint64_t state = S4EAppearancePublished | (gDarkNow ? S4EAppearanceDark : 0) |
-                     (S4EBool(prefs, kS4EDMOtherApps, NO) ? S4EAppearanceOtherApps : 0);
+    uint64_t state = S4EAppearancePublished | (gDarkNow ? S4EAppearanceDark : 0);
     static int token;
     static BOOL ready;
     if (!ready)

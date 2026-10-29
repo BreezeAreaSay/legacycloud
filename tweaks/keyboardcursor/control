@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.keyboardcursor
 Name: Space Bar Cursor
-Version: 0.5.1
+Version: 0.5.2
 Architecture: iphoneos-arm
 Description: Move the text cursor by swiping on the space bar (iOS 12)
 Maintainer: SmokinInTheWoods

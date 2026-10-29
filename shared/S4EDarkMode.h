@@ -14,7 +14,6 @@
 #define kS4EDMFrom @"DarkModeFrom"                   // dark from, minutes since midnight
 #define kS4EDMTo @"DarkModeTo"                       // light from
 #define kS4EDMUntil @"DarkModeChoiceUntil"           // a choice made while Automatic is on holds until then
-#define kS4EDMOtherApps @"DarkModeOtherApps"
 #define kS4EDMIcons @"DarkModeIcons"                 // "auto" (with Dark Mode), "dark" or "light"
 
 #define S4E_DM_DEFAULT_FROM (22 * 60)
@@ -25,7 +24,6 @@
 enum {
     S4EAppearancePublished = 1u << 0,
     S4EAppearanceDark = 1u << 1,
-    S4EAppearanceOtherApps = 1u << 2,
 };
 
 static inline S4E_UNUSED int S4EDMFrom(NSDictionary *p) { return (int)S4EDouble(p, kS4EDMFrom, S4E_DM_DEFAULT_FROM); }
@@ -81,6 +79,5 @@ static inline S4E_UNUSED uint64_t S4EAppearance(void) {
     NSDictionary *p = S4EPrefsRead();
     if (!p)
         return 0;
-    return S4EAppearancePublished | (S4EDMIsDark(p, [NSDate date]) ? S4EAppearanceDark : 0) |
-           (S4EBool(p, kS4EDMOtherApps, NO) ? S4EAppearanceOtherApps : 0);
+    return S4EAppearancePublished | (S4EDMIsDark(p, [NSDate date]) ? S4EAppearanceDark : 0);
 }

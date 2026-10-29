@@ -1,5 +1,5 @@
-// Жирный шрифт (iOS 7, Универсальный доступ): системный шрифт и Helvetica становятся на ступень жирнее.
-// Включается при запуске программы, поэтому после переключения Настройки перезапускают SpringBoard.
+// Bold Text (iOS 7, Accessibility): the system font and Helvetica become one weight heavier.
+// It takes effect when an app launches, so after it is toggled Settings restarts SpringBoard.
 
 #import "S4EShared.h"
 
@@ -7,7 +7,7 @@ static NSDictionary *gHeavier;
 
 static UIFont *(*orig_fontWithNameSize)(id, SEL, NSString *, CGFloat);
 
-// Жирный вариант ищем по имени, а не через boldSystemFontOfSize: — тот может сам вызывать systemFontOfSize:.
+// The bold variant is looked up by name, not via boldSystemFontOfSize:, which may itself call systemFontOfSize:.
 static UIFont *(*orig_systemFontOfSize)(id, SEL, CGFloat);
 static UIFont *hook_systemFontOfSize(id self, SEL _cmd, CGFloat size) {
     UIFont *regular = orig_systemFontOfSize(self, _cmd, size);

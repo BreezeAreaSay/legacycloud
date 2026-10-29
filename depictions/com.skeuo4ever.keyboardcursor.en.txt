@@ -1,0 +1,8 @@
+As in iOS 12: slide your finger along the space bar and the cursor moves through the text. Left and right move by letters, up and down by lines.
+
+Sliding from the Shift key selects text: from where the cursor was to where your finger stops.
+
+A normal tap on the space bar or Shift works as before: cursor control starts only once your finger moves. Works in every app, including text fields on websites in Safari.
+
+## Settings
+Settings → Skeuo4Ever → Space Bar Cursor.

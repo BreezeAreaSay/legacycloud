@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""Обновляет Cydia-источник Skeuo4Ever в каталоге SITE (рабочая копия ветки gh-pages).
+"""Updates the Skeuo4Ever Cydia repo in the SITE directory (a working copy of the gh-pages branch).
 
-Использование: scripts/make-repo.py [DEBS] [SITE]   (по умолчанию debs/ и _site/)
-S4E_REPO_URL — адрес источника, нужен для полей Depiction, Icon и Homepage.
+Usage: scripts/make-repo.py [DEBS] [SITE]   (defaults: debs/ and _site/)
+S4E_REPO_URL is the repo address, used for the Depiction, Icon and Homepage fields.
 
-Как в sqmrak/sqmrakdev, опубликованное не переписывается:
-  * SITE/published.json помнит каждую выпущенную версию: файл, sha256 и отпечаток исходников
-    (DEBS/sources.json, его пишет build.sh);
-  * версия уже выпущена и исходники те же — остаётся опубликованный файл, новая сборка
-    отбрасывается (сборка не воспроизводима побайтно, а обновлений-пустышек в Cydia быть не должно);
-  * исходники изменились, а версия та же — ошибка: подними Version в control;
-  * старые версии остаются в источнике, к ним можно откатиться.
+Like sqmrak/sqmrakdev, nothing published is ever rewritten:
+  * SITE/published.json remembers every released version: file, sha256 and source fingerprint
+    (DEBS/sources.json, written by build.sh);
+  * the version is already released and the sources are the same: the published file stays and the
+    new build is dropped (builds are not byte-for-byte reproducible, and Cydia must not get empty updates);
+  * the sources changed but the version did not: error, bump Version in control;
+  * old versions stay in the repo, so users can roll back.
 
-Cydia на iOS 6 пропускает Description через перекодировку APT в ASCII, и кириллица
-превращается в «?». Поэтому в Description — короткая строка по-английски, а русское описание —
-на странице пакета (поле Depiction): её Cydia открывает в браузере, где UTF-8 работает.
-Тексты страниц — depictions/<пакет>.txt, иконки — icons/<пакет>.png.
+Cydia on iOS 6 runs Description through APT's conversion to ASCII, so anything but English turns into
+"?". Description is therefore a short English line; the full text lives on the package page
+(the Depiction field), which Cydia opens in a browser where UTF-8 works. The page is bilingual:
+depictions/<package>.en.txt and depictions/<package>.ru.txt, shown by the system language with a
+switch at the top. Icons are icons/<package>.png.
+
+Packages of the old name (iOS6Revive, com.ios6revive.*) stay in published.json and debs/, but are no
+longer listed: the new packages replace them.
 """
 
 import bz2
@@ -36,7 +40,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DEBS = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "debs"
 SITE = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "_site"
 REPO_URL = os.environ.get("S4E_REPO_URL", "").rstrip("/")
-GENERATED = ["Packages", "Packages.gz", "Packages.bz2", "depictions"]  # Release пишется отдельно
+GENERATED = ["Packages", "Packages.gz", "Packages.bz2", "depictions"]  # Release is written separately
+RETIRED_PREFIXES = ("com.ios6revive.",)
 
 RELEASE_HEADER = """Origin: Skeuo4Ever
 Label: Skeuo4Ever
@@ -45,31 +50,38 @@ Version: 1.0
 Codename: skeuo4ever
 Architectures: iphoneos-arm
 Components: main
-Description: New iOS features in iOS 6 style
+Description: Modern iOS features, skeuomorphic forever
 """
 
 DEPICTION = """<!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>{name}</title>
 <link rel="stylesheet" href="../../style.css">
+<script src="../../language.js"></script>
 </head>
 <body>
 <div class="page depiction">
 <div class="hero" id="hero">{icon}<h1>{name}</h1></div>
 <script>
-  // В Cydia заголовок с иконкой уже есть
+  // Cydia already shows a header with the icon
   if (navigator.userAgent.indexOf("Cydia") >= 0) document.getElementById("hero").style.display = "none";
 </script>
-{body}
-<h2>Подробности</h2>
+<p class="languages"><a href="#" data-lang="en">English</a> · <a href="#" data-lang="ru">Русский</a></p>
+<div class="lang-en">
+{body_en}
+</div>
+<div class="lang-ru">
+{body_ru}
+</div>
+<h2><span class="lang-en">Details</span><span class="lang-ru">Подробности</span></h2>
 <ul class="group">
-<li class="row">Совместимость<em>iOS 6.0 – 6.1.x</em></li>
-<li class="row">Разработчик<em>{author}</em></li>
+<li class="row"><span class="lang-en">Compatibility</span><span class="lang-ru">Совместимость</span><em>iOS 6.0 – 6.1.x</em></li>
+<li class="row"><span class="lang-en">Developer</span><span class="lang-ru">Разработчик</span><em>{author}</em></li>
 </ul>
-<h2>Версии</h2>
+<h2><span class="lang-en">Versions</span><span class="lang-ru">Версии</span></h2>
 <ul class="group">
 {versions}
 </ul>
@@ -102,8 +114,8 @@ def version_cmp(a: str, b: str) -> int:
 
 
 def render_text(text: str) -> str:
-    """Абзацы — ячейки, «## Заголовок» — новая группа, «- пункт» — список."""
-    # «20 %» и «6.0 – 6.1» не должны разрываться переносом
+    """Paragraphs become cells, "## Heading" starts a new group, "- item" makes a list."""
+    # "20 %" and "6.0 – 6.1" must not break across lines
     text = text.replace(" %", " %").replace(" –", " –")
     out, cells, bullets, paragraph = [], [], [], []
 
@@ -142,7 +154,7 @@ def render_text(text: str) -> str:
 
 
 def publish_new(manifest: dict) -> list:
-    """Добавляет в SITE новые версии. Возвращает ошибки."""
+    """Adds new versions to SITE. Returns errors."""
     sources = json.loads((DEBS / "sources.json").read_text())
     today = datetime.date.today().isoformat()
     errors = []
@@ -153,12 +165,12 @@ def publish_new(manifest: dict) -> list:
         versions = manifest.setdefault(package, {})
         if version in versions:
             if versions[version]["source"] != source:
-                errors.append(f"{package} {version}: исходники изменились, а эта версия уже опубликована — "
-                              f"подними Version в control")
+                errors.append(f"{package} {version}: the sources changed but this version is already published — "
+                              f"bump Version in control")
             continue
         newer = [v for v in versions if version_cmp(version, v) <= 0]
         if newer:
-            errors.append(f"{package} {version}: уже опубликована более новая версия {max(newer, key=cmp_to_key(version_cmp))}")
+            errors.append(f"{package} {version}: a newer version is already published: {max(newer, key=cmp_to_key(version_cmp))}")
             continue
         target = SITE / "debs" / f"{package}_{version}_iphoneos-arm.deb"
         target.parent.mkdir(exist_ok=True)
@@ -169,7 +181,7 @@ def publish_new(manifest: dict) -> list:
 
 
 def write_depiction(package: str, control: str, versions: dict) -> dict:
-    """Страница и иконка пакета. Возвращает поля для Packages."""
+    """The package page and icon. Returns extra fields for Packages."""
     folder = SITE / "depictions" / package
     folder.mkdir(parents=True, exist_ok=True)
     extra = {}
@@ -180,7 +192,11 @@ def write_depiction(package: str, control: str, versions: dict) -> dict:
         icon_html = '<img src="icon.png" alt="">'
         if REPO_URL:
             extra["Icon"] = f"{REPO_URL}/depictions/{package}/icon.png"
-    text = ROOT / "depictions" / f"{package}.txt"
+
+    def body(language: str) -> str:
+        text = ROOT / "depictions" / f"{package}.{language}.txt"
+        return render_text(text.read_text(encoding="utf-8")) if text.exists() else ""
+
     rows = "\n".join(
         f'<li class="row">{html.escape(v)}<em>{html.escape(versions[v]["date"])}</em></li>'
         for v in sorted(versions, key=cmp_to_key(version_cmp), reverse=True)
@@ -188,7 +204,8 @@ def write_depiction(package: str, control: str, versions: dict) -> dict:
     page = DEPICTION.format(
         name=html.escape(field(control, "Name") or package),
         icon=icon_html,
-        body=render_text(text.read_text(encoding="utf-8")) if text.exists() else "",
+        body_en=body("en"),
+        body_ru=body("ru") or body("en"),
         author=html.escape(field(control, "Author")),
         versions=rows,
     )
@@ -209,12 +226,12 @@ def main() -> None:
         for version, entry in versions.items():
             path = SITE / entry["file"]
             if not path.exists() or sha256(path) != entry["sha256"]:
-                errors.append(f"{package} {version}: опубликованный файл {entry['file']} пропал или изменился")
+                errors.append(f"{package} {version}: the published file {entry['file']} is missing or changed")
     if errors:
-        print("\n".join(f"ОШИБКА: {e}" for e in errors), file=sys.stderr)
+        print("\n".join(f"ERROR: {e}" for e in errors), file=sys.stderr)
         sys.exit(1)
 
-    # Пересобираем всё производное; debs/ и published.json не трогаем
+    # Regenerate everything derived; debs/ and published.json are left alone
     for name in GENERATED:
         path = SITE / name
         if path.is_dir():
@@ -222,10 +239,12 @@ def main() -> None:
         elif path.exists():
             path.unlink()
     shutil.copytree(ROOT / "repo", SITE, dirs_exist_ok=True)
-    (SITE / ".nojekyll").touch()  # GitHub Pages отдаёт файлы как есть
+    (SITE / ".nojekyll").touch()  # GitHub Pages serves the files as they are
 
     entries = []
     for package in sorted(manifest):
+        if package.startswith(RETIRED_PREFIXES):
+            continue
         versions = manifest[package]
         ordered = sorted(versions, key=cmp_to_key(version_cmp))
         latest_control = control_of(SITE / versions[ordered[-1]]["file"])
@@ -252,7 +271,7 @@ def main() -> None:
     for title, algorithm in (("MD5Sum", hashlib.md5), ("SHA1", hashlib.sha1), ("SHA256", hashlib.sha256)):
         checksums.append(f"{title}:")
         checksums += [f" {algorithm(data).hexdigest()} {len(data)} {name}" for name, data in indexes.items()]
-    # Дату меняем, только когда меняются индексы: иначе каждая сборка давала бы коммит в gh-pages
+    # The date changes only when the indexes do: otherwise every build would make a gh-pages commit
     release_path = SITE / "Release"
     old_release = release_path.read_text() if release_path.exists() else ""
     if old_release.split("\nDate: ")[0] != RELEASE_HEADER.rstrip("\n") or not old_release.endswith("\n".join(checksums) + "\n"):
@@ -260,7 +279,7 @@ def main() -> None:
         release_path.write_text("\n".join(release) + "\n")
 
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
-    print(f"{sum(len(v) for v in manifest.values())} версий {len(manifest)} пакетов → {SITE}")
+    print(f"{sum(len(v) for v in manifest.values())} versions of {len(manifest)} packages → {SITE}")
 
 
 if __name__ == "__main__":

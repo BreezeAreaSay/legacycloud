@@ -1,15 +1,15 @@
-// Лента «Новое» на иконке новой программы — родная лента iOS 6, но для всех новых программ.
+// "New" sash on a new app's icon: the native iOS 6 sash, but for every new app.
 //
-// iOS 6 вешает ленту, только если SpringBoard сам пометил программу как новую (обычно при загрузке
-// из App Store), поэтому на программах из ipa она появляется через раз, а на программах из Cydia —
-// никогда. Твик сам помнит, какие программы новые, до их первого запуска:
-//  * программы из /var/mobile/Applications (App Store, ipa) — это SBUserInstalledApplicationIcon:
-//    отвечаем «да» на -_shouldShowSashForNewlyInstalledApp, и ленту рисует сам SpringBoard;
-//  * у программ из /Applications (Cydia) ленты не бывает: кладём на иконку ту же картинку
-//    +[SBIconSashImage sashWithText:] туда же, где её рисует SpringBoard (-accessoryFrameForIconBounds:).
-//    Так же поступаем с любой новой программой, если SpringBoard ленту всё-таки не нарисовал.
-//    Свою ленту кладём, только когда у иконки нет родной ленты или бейджа, — проверяем после
-//    каждого -updateBadge, поэтому лент не бывает две и лента не ложится на бейдж.
+// iOS 6 shows the sash only if SpringBoard itself marked the app as new (usually on an App Store
+// download), so on apps installed from an ipa it appears only sometimes, and on apps from Cydia
+// never. The tweak itself remembers which apps are new until their first launch:
+//  * apps in /var/mobile/Applications (App Store, ipa) are SBUserInstalledApplicationIcon:
+//    we answer "yes" to -_shouldShowSashForNewlyInstalledApp, and SpringBoard draws the sash itself;
+//  * apps in /Applications (Cydia) never get a sash: we put the same image
+//    +[SBIconSashImage sashWithText:] on the icon, where SpringBoard draws it (-accessoryFrameForIconBounds:).
+//    We do the same for any new app if SpringBoard did not draw the sash after all.
+//    Our sash goes on only when the icon has no native sash or badge; this is checked after
+//    every -updateBadge, so there are never two sashes and the sash never covers a badge.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
@@ -23,7 +23,7 @@ static NSMutableSet *gKnown;
 static NSMutableSet *gNew;
 static BOOL gEnabled = YES;
 
-#pragma mark - Приватные API SpringBoard iOS 6.1
+#pragma mark - iOS 6.1 SpringBoard private APIs
 
 @interface SBIconSashImage : UIImage
 + (id)sashWithText:(NSString *)text;
@@ -53,7 +53,7 @@ static BOOL gEnabled = YES;
 - (UIView *)iconImageView;
 @end
 
-#pragma mark - Какие программы новые
+#pragma mark - Which apps are new
 
 static void S4ESaveState(void) {
     NSDictionary *state = @{@"Known": gKnown.allObjects, @"New": gNew.allObjects};
@@ -82,7 +82,7 @@ static SBIconModel *S4EIconModel(void) {
     return [controller respondsToSelector:@selector(model)] ? [controller model] : nil;
 }
 
-// Перерисовать ленту у иконки программы: родную — через noteBadgeDidChange, нашу — уведомлением
+// Redraw the sash on an app's icon: the native one via noteBadgeDidChange, ours via a notification
 static void S4ERefreshIcon(NSString *bundleID) {
     SBIconModel *model = S4EIconModel();
     SBIcon *icon = [model respondsToSelector:@selector(applicationIconForDisplayIdentifier:)]
@@ -92,22 +92,22 @@ static void S4ERefreshIcon(NSString *bundleID) {
     [[NSNotificationCenter defaultCenter] postNotificationName:S4E_NOTE_REFRESH object:nil];
 }
 
-// Программа появилась, пока SpringBoard работает (установка из App Store, ipa или Cydia)
+// An app appeared while SpringBoard is running (installed from the App Store, an ipa or Cydia)
 static void S4ENoteSeen(NSString *bundleID) {
     if (!bundleID || !gKnown || [gKnown containsObject:bundleID])
         return;
     [gKnown addObject:bundleID];
     [gNew addObject:bundleID];
     S4ESaveState();
-    // Иконка уже решила, нужна ли ей лента, — пусть решит ещё раз
+    // The icon has already decided whether it needs a sash; let it decide again
     dispatch_async(dispatch_get_main_queue(), ^{
         S4ERefreshIcon(bundleID);
     });
 }
 
-#pragma mark - Лента для программ из Cydia
+#pragma mark - Sash for apps from Cydia
 
-// Подпись ленты — та же, что у SpringBoard («Новое»): берём у любой программы из App Store
+// The sash label is the same as SpringBoard's ("New"): take it from any App Store app
 static NSString *S4ESashText(void) {
     static NSString *text;
     if (text)
@@ -154,13 +154,13 @@ static NSString *S4ESashText(void) {
 
 @end
 
-// Родная лента или бейдж уже на иконке
+// A native sash or badge is already on the icon
 static BOOL S4EHasNativeAccessory(SBIconView *iconView) {
     UIImageView *accessory = S4EIvar(iconView, "_accessoryView");
     return [accessory isKindOfClass:[UIImageView class]] && accessory.image && !accessory.hidden && accessory.superview;
 }
 
-// Лента живёт внутри картинки иконки: так она сама качается, затемняется и прячется вместе с ней
+// The sash lives inside the icon image, so it wiggles, dims and hides along with it
 static void S4EUpdateSash(SBIconView *iconView) {
     SBIcon *icon = [iconView respondsToSelector:@selector(icon)] ? [iconView icon] : nil;
     NSString *bundleID = S4EBundleIDForIcon(icon);
@@ -187,13 +187,13 @@ static void S4EUpdateSash(SBIconView *iconView) {
     SBIconSashImage *image = (SBIconSashImage *)sash.image;
     if ([image respondsToSelector:@selector(accessoryFrameForIconBounds:)])
         sash.frame = [image accessoryFrameForIconBounds:imageView.bounds];
-    else // правый верхний угол, как у родной ленты
+    else // top right corner, like the native sash
         sash.frame = CGRectMake(imageView.bounds.size.width - image.size.width + 4, -4, image.size.width, image.size.height);
 }
 
-#pragma mark - Перехваты SpringBoard
+#pragma mark - SpringBoard hooks
 
-// Родная лента у программ из App Store и ipa
+// Native sash for apps from the App Store and ipa
 static BOOL (*orig_shouldShowSash)(id, SEL);
 static BOOL hook_shouldShowSash(id self, SEL _cmd) {
     return orig_shouldShowSash(self, _cmd) || S4EIsNew(S4EBundleIDForIcon(self));
@@ -228,8 +228,8 @@ static void hook_didLaunch(SBApplication *self, SEL _cmd, id process) {
     }
 }
 
-// При первом запуске твика запоминаем все программы как «старые», чтобы ленты не появились везде.
-// Потом при каждой загрузке SpringBoard ищем установленные, пока он был выключен.
+// On the tweak's first run, remember all apps as "old" so that sashes do not appear everywhere.
+// After that, on every SpringBoard launch, look for apps installed while it was off.
 static void (*orig_finishLaunching)(UIApplication *, SEL, id);
 static void hook_finishLaunching(UIApplication *self, SEL _cmd, id application) {
     orig_finishLaunching(self, _cmd, application);
@@ -250,7 +250,7 @@ static void hook_finishLaunching(UIApplication *self, SEL _cmd, id application) 
             if (![gKnown containsObject:bundleID])
                 [gNew addObject:bundleID];
         [gKnown unionSet:installed];
-        [gNew intersectSet:installed]; // удалённые программы забываем
+        [gNew intersectSet:installed]; // forget removed apps
     }
     S4ESaveState();
     for (NSString *bundleID in gNew)

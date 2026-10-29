@@ -1,0 +1,10 @@
+Night Shift from iOS 9.3: after dark, the display colors shift to the warmer end of the spectrum.
+
+- a "From… To…" schedule or "Manually Enable Until Tomorrow";
+- a color temperature slider;
+- smooth fading in and out.
+
+Only the display colors change; the apps' interface stays the same. If the gamma table format turns out to be unfamiliar, the feature turns itself off and says so in its settings. A restart always brings the usual colors back.
+
+## Settings
+Brightness & Wallpaper → Night Shift, as in modern iOS. The same item is in Settings → Skeuo4Ever.

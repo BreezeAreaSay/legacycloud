@@ -1,116 +1,131 @@
-# iOS6Revive
+# Skeuo4Ever
 
-Функции новых iOS, перенесённые на iOS 6 без изменения её стиля. Глянец, лён, тиснёный текст и родные
-элементы iOS 6 остаются на месте: новое встраивается в них, а не рисуется поверх.
+**What if iOS 7 had never gone flat?**
 
-Цель — iPhone 4S на iOS 6.1.3 (armv7), но пакеты ставятся на любое устройство с iOS 6.0–6.1.x.
+Skeuo4Ever brings the features of later iOS versions to iOS 6 and builds them from the same materials Apple
+used back then: glass, linen, leather, paper, metal, glossy buttons and embossed text. New things are woven
+into the native iOS 6 interface instead of being painted over it — so they look as if they had always been
+there. Skeuomorphism forever.
 
-> **Статус: 0.1, на устройстве ещё не проверялось.** Код собирается под armv7 / iOS 6 и сверен с
-> class-dump заголовками iOS 6.1, но первый запуск на живом телефоне — за тобой. Если SpringBoard упадёт,
-> MobileSubstrate уйдёт в Safe Mode; удали проблемный пакет в Cydia и пришли лог.
+Everything is written from scratch. The target is an iPhone 4S on iOS 6.1.3 (armv7), but the packages install
+on any device with iOS 6.0–6.1.x.
 
-## Что внутри (этап 1 — «быстрые победы»)
+[Русская версия](README.ru.md)
 
-| Пакет | Откуда | Как выглядит на iOS 6 |
+## Features
+
+| Package | From | How it looks on iOS 6 |
 |---|---|---|
-| `com.ios6revive.swipeback` — Смахивание назад | iOS 7 | Жест от левого края; оба экрана едут вместе, как в анимации iOS 6, с тенью по краю |
-| `com.ios6revive.battery` — Энергосбережение | iOS 9 | Заливка батарейки становится жёлтой; в предупреждении «Осталось 20 %» появляется кнопка «Энергосбережение» |
-| ↳ Состояние аккумулятора | iOS 11.3 | Экран с максимальной ёмкостью, циклами и температурой из родных ячеек Настроек |
-| `com.ios6revive.nightshift` — Night Shift | iOS 9.3 | Тёплые цвета через гамма-таблицу дисплея, расписание «С… До…», ползунок температуры |
-| `com.ios6revive.newappdot` — Лента «Новое» | iOS 6 | Родная лента «Новое» на каждой новой программе до первого запуска — и из ipa, и из Cydia, где iOS 6 её не вешает |
-| `com.ios6revive.boldtext` — Жирный шрифт | iOS 7 | Системный шрифт и Helvetica на ступень жирнее во всех программах |
-| `com.ios6revive.desktopsite` — Полная версия сайта | iOS 9 | Пункт «Полная версия» в родном меню «Поделиться» Safari |
-| `com.ios6revive.controlcenter` — Пункт управления | iOS 7 | Свайп вверх от нижнего края (жест из Activator): серый лён и квадратные кнопки в серой оправе, как у Auxo, родные ползунки яркости и громкости, музыка, фонарик; в ландшафте — раскладка iOS 7 для iPad |
-| `com.ios6revive.keyboardcursor` — Курсор свайпом по пробелу | iOS 12 | Ведите по пробелу — курсор едет по буквам и строкам; от Shift — выделение |
-| `com.ios6revive.screenshot` — Превью скриншота | iOS 11 | Снимок уменьшается в угол фотографией в белой рамке; по нажатию — разметка с чёрными панелями «Фото», пером, маркером и ластиком |
-| `com.ios6revive.core` | — | Пункт **Настройки → iOS6Revive** и общие службы; ставится автоматически |
-| `com.ios6revive.quickwins` | — | Мета-пакет: всё перечисленное одной установкой |
+| `com.skeuo4ever.controlcenter` — Control Center | iOS 7 | Swipe up from the bottom edge (an Activator gesture): grey linen and square buttons in grey frames, like Auxo, native brightness and volume sliders, music, flashlight; the iOS 7 iPad layout in landscape |
+| `com.skeuo4ever.screenshot` — Screenshot Preview | iOS 11 | The screenshot shrinks into the corner as a photo in a white frame; tap it for markup with the black bars of Photos, pen, marker and eraser; the cross deletes it |
+| `com.skeuo4ever.keyboardcursor` — Space Bar Cursor | iOS 12 | Slide along the space bar to move the cursor by letters and lines; slide from Shift to select |
+| `com.skeuo4ever.swipeback` — Swipe Back | iOS 7 | A swipe from the left edge; both screens slide together, as in the iOS 6 animation, with a shadow along the edge |
+| `com.skeuo4ever.battery` — Low Power Mode | iOS 9 | The battery fill turns yellow; the "20 % of battery remaining" alert gets a Low Power Mode button |
+| ↳ Battery Health | iOS 11.3 | A screen with maximum capacity, cycle count and temperature, built from native Settings cells |
+| `com.skeuo4ever.nightshift` — Night Shift | iOS 9.3 | Warm colors through the display gamma table, a "From… To…" schedule, a temperature slider |
+| `com.skeuo4ever.newsash` — New App Sash | iOS 6 | The native "New" sash on every new app until its first launch — ipa and Cydia apps too, where iOS 6 never puts it |
+| `com.skeuo4ever.boldtext` — Bold Text | iOS 7 | The system font and Helvetica one weight bolder in every app |
+| `com.skeuo4ever.desktopsite` — Request Desktop Site | iOS 9 | A Request Desktop Site item in Safari's native share sheet |
+| `com.skeuo4ever.core` | — | The **Settings → Skeuo4Ever** item and shared services; installed automatically |
+| `com.skeuo4ever` | — | Meta package: every feature in one install; replaces the old iOS6Revive packages |
 
-Каждая функция — отдельный пакет; в Настройках → iOS6Revive видны только установленные.
+Each feature is a separate package; Settings → Skeuo4Ever shows only the installed ones.
 
-### Как работает энергосбережение
-Яркость снижается на 20 %, автоблокировка ставится на 1 минуту (минимум в iOS 6). При выключении режима
-всё возвращается, если ты не менял это вручную. На зарядке режим выключается сам, когда заряд переходит 80 %.
+**Language.** The interface is in English and Russian: by the system language, or chosen in
+Settings → Skeuo4Ever → Language. Package pages switch the same way.
 
-### Night Shift и безопасность
-Перед записью гамма-таблицы проверяется её формат (у iOS 6 и iOS 7+ он разный). Если формат незнакомый,
-функция выключается и пишет об этом в своих настройках — дисплей не трогается. Исходная таблица
-хранится в `/var/mobile/Library/iOS6Revive/gamma-original.bin`. Перезагрузка всегда возвращает обычные цвета.
+### How Low Power Mode works
+Brightness drops by 20 % and Auto-Lock is set to 1 minute (the minimum in iOS 6). Turning the mode off
+restores both unless you changed them by hand. While charging, the mode turns itself off once the battery
+passes 80 %.
 
-## Установка
+### Night Shift and safety
+Before writing the gamma table, its format is checked (it differs between iOS 6 and iOS 7+). If the format is
+unfamiliar, the feature turns itself off and says so in its settings — the display is not touched. The original
+table is kept in `/var/mobile/Library/Skeuo4Ever/gamma-original.bin`. A restart always brings the usual colors back.
 
-После того как сработает GitHub Actions (см. ниже), добавь в Cydia источник:
+## Installation
+
+Add this source in Cydia:
 
 ```
-https://vdch00.github.io/iOS6Revive/
+https://vdch00.github.io/Skeuo4Ever/
 ```
 
-На странице источника есть кнопка «Добавить в Cydia». GitHub Pages работает только по HTTPS. Если Cydia
-на iOS 6 не сможет подключиться, скачай `.deb` из артефактов сборки (вкладка Actions) или из
-`https://vdch00.github.io/iOS6Revive/debs/` и установи вручную.
+The repo page has an "Add to Cydia" button. GitHub Pages works over HTTPS only. If Cydia on iOS 6 cannot
+connect, download the `.deb` files from the build artifacts (the Actions tab) or from
+`https://vdch00.github.io/Skeuo4Ever/debs/` and install them by hand.
 
-### Включить публикацию (один раз)
-1. На бесплатном тарифе GitHub Pages работают только у **публичных** репозиториев:
+### Moving from iOS6Revive
+The project used to be called iOS6Revive (`com.ios6revive.*`). Install the **Skeuo4Ever** package from the new
+source: it replaces all the old packages, and Cydia removes them in the same step. Settings, Night Shift data and
+Activator gestures carry over by themselves.
+
+### Enabling publishing (once)
+1. On the free plan, GitHub Pages works only for **public** repositories:
    Settings → General → Danger Zone → Change visibility → Public.
-2. Сделай push в `main`: первая сборка создаст ветку `gh-pages`.
-3. Settings → Pages → Build and deployment → Source: **Deploy from a branch**, ветка `gh-pages`, папка `/ (root)`.
+2. Push to `main`: the first build creates the `gh-pages` branch.
+3. Settings → Pages → Build and deployment → Source: **Deploy from a branch**, branch `gh-pages`, folder `/ (root)`.
 
-В `gh-pages` пишет только сборка из ветки по умолчанию; сборки других веток и пулл-реквестов только
-проверяют, что публикация пройдёт.
+Only builds of the default branch write to `gh-pages`; builds of other branches and pull requests only check
+that publishing would succeed.
 
-## Сборка
+## Building
 
-Нужны [Theos](https://theos.dev), iOS-тулчейн и `iPhoneOS10.3.sdk` из [theos/sdks](https://github.com/theos/sdks)
-(последний SDK с 32-битными заглушками). Всё это автоматически ставит `.github/workflows/build.yml`.
-`scripts/fix-sdk.py` возвращает в заглушки libobjc символы `objc_msgSend*_stret`, которые есть только
-у 32-битного рантайма: `build.sh` и `check.sh` вызывают его сами.
+You need [Theos](https://theos.dev), an iOS toolchain and `iPhoneOS10.3.sdk` from [theos/sdks](https://github.com/theos/sdks)
+(the last SDK with 32-bit stubs). `.github/workflows/build.yml` installs all of it automatically.
+`scripts/fix-sdk.py` puts the `objc_msgSend*_stret` symbols, which only the 32-bit runtime has, back into the
+libobjc stubs; `build.sh` and `check.sh` run it themselves.
 
 ```bash
 export THEOS=~/theos
-./build.sh                     # все пакеты → debs/ (+ debs/sources.json — отпечатки исходников)
-python3 scripts/make-repo.py   # обновить источник в _site/ (там же может лежать рабочая копия gh-pages)
-scripts/check.sh               # быстрая проверка: компиляция под armv7 / iOS 6 и наличие всех символов в заглушках SDK
-python3 scripts/make-icons.py  # перерисовать иконки источника и пакетов
+./build.sh                     # every package → debs/ (+ debs/sources.json, the source fingerprints)
+python3 scripts/make-repo.py   # update the repo in _site/ (a gh-pages working copy can live there)
+scripts/check.sh               # quick check: armv7 / iOS 6 compile and every symbol present in the SDK stubs
+python3 scripts/make-icons.py  # redraw the repo and package icons
 ```
 
-## Публикация и версии
+## Publishing and versions
 
-Устроено по образцу [sqmrak/sqmrakdev](https://github.com/sqmrak/sqmrakdev): `main` — исходники,
-`gh-pages` — опубликованный источник. Каждый пуш в `main` собирает пакеты, дописывает новые версии
-в `gh-pages` и выкладывает её на Pages.
+Modeled on [sqmrak/sqmrakdev](https://github.com/sqmrak/sqmrakdev): `main` holds the sources, `gh-pages` the
+published repo. Every push to `main` builds the packages, adds new versions to `gh-pages` and publishes it on Pages.
 
-- **Версия пакета — поле `Version` в его `control`.** Чтобы выпустить пакет, подними её.
-- `gh-pages/published.json` помнит каждую выпущенную версию: файл, sha256 и отпечаток исходников.
-  Пересборка того же кода ничего не меняет — в Cydia не бывает обновлений-пустышек.
-- Если исходники пакета изменились, а `Version` нет, сборка падает и называет пакет.
-  Код в `shared/` и `common.mk` входит во все твики, поэтому после его правки поднимай версии всем.
-- Старые версии остаются в источнике, к ним можно откатиться.
+- **A package's version is the `Version` field of its `control`.** Bump it to release the package.
+- `gh-pages/published.json` remembers every released version: file, sha256 and source fingerprint.
+  Rebuilding the same code changes nothing — Cydia never gets empty updates.
+- If a package's sources changed but its `Version` did not, the build fails and names the package.
+  Code in `shared/` and `common.mk` goes into every tweak, so bump every version after changing it.
+- Old versions stay in the repo, so users can roll back.
 
-## Устройство
+## Layout
 
 ```
-shared/          общий код (только заголовки): настройки, состояние, приватные API iOS 6.1
-tweaks/core      IRCore (SpringBoard) + IRSettings (Настройки)
-tweaks/<функция> по твику на функцию, у каждого свой control и фильтр MobileSubstrate
-meta/quickwins   мета-пакет
-repo/            статичные файлы источника: страница, стили, CydiaIcon.png
-icons/           иконки пакетов (scripts/make-icons.py)
-depictions/      русские описания пакетов (страница пакета в Cydia); в control — короткая строка
-                 по-английски, потому что Cydia на iOS 6 превращает кириллицу в Description в «?»
-scripts/         генерация Packages/Release, иконка, проверка
+shared/          shared code (headers only): settings, state, language, iOS 6.1 private APIs
+tweaks/core      S4ECore (SpringBoard) + S4ESettings (Settings)
+tweaks/<feature> one tweak per feature, each with its own control and MobileSubstrate filter
+meta/skeuo4ever  the meta package
+repo/            static repo files: page, styles, language switch, CydiaIcon.png
+icons/           package icons (scripts/make-icons.py)
+depictions/      package pages in English and Russian (<package>.en.txt, <package>.ru.txt);
+                 control holds a short English line, since Cydia on iOS 6 turns non-ASCII Description into "?"
+scripts/         Packages/Release generation, icons, checks
 ```
 
-**Настройки и состояние.** Источник правды — `/var/mobile/Library/Preferences/com.ios6revive.plist`.
-Настройки и SpringBoard пишут его и шлют Darwin-уведомление `com.ios6revive/prefs-changed`. SpringBoard
-публикует короткую битовую маску в состоянии уведомления `com.ios6revive/state`: программы из App Store
-живут в песочнице и могут не прочитать plist, поэтому берут флаги оттуда.
+**Settings and state.** The source of truth is `/var/mobile/Library/Preferences/com.skeuo4ever.plist`.
+Settings and SpringBoard write it and post the `com.skeuo4ever/prefs-changed` Darwin notification. SpringBoard
+publishes a short bit mask in the state of the `com.skeuo4ever/state` notification: App Store apps live in a
+sandbox and may not be able to read the plist, so they take their flags from there.
 
-**Разделы настроек из пакетов.** Пакет может положить `/Library/iOS6Revive/Sections/<имя>.plist`
-(`order`, `title`, `footer`, `cells = ({ title, key, default })`), и его переключатели появятся в
-Настройки → iOS6Revive без обновления ядра. Так сделан курсор: `tweaks/keyboardcursor/layout/`.
+**Language.** Every user-facing string is written as `S4E_L(@"English", @"Русский")` (`shared/S4EShared.h`).
+The choice is the `Language` key (`auto`, `en`, `ru`); `auto` follows the system language.
 
-**Код.** Чистый Objective-C с `MSHookMessageEx`, без Logos. Так каждый файл проверяется обычным clang,
-а все приватные классы берутся через `objc_getClass` и вызываются после `respondsToSelector:`:
-если чего-то нет, функция тихо отключается, а не роняет SpringBoard.
+**Settings sections from packages.** A package can install `/Library/Skeuo4Ever/Sections/<name>.plist`
+(`order`, `title`, `footer`, `cells = ({ title, key, default })`; any text may be a `{ en, ru }` dictionary),
+and its switches show up in Settings → Skeuo4Ever without a core update. The cursor and the screenshot preview
+do it this way: `tweaks/<feature>/layout/`.
 
-Дальнейшие этапы — в [ROADMAP.md](ROADMAP.md).
+**Code.** Plain Objective-C with `MSHookMessageEx`, no Logos. That way every file is checked by a regular clang,
+and all private classes are looked up with `objc_getClass` and called after `respondsToSelector:`: if something
+is missing, the feature quietly turns off instead of crashing SpringBoard.
+
+Further stages are in [ROADMAP.md](ROADMAP.md).

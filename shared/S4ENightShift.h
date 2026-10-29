@@ -1,14 +1,14 @@
-// Расписание Night Shift: общее для SpringBoard (движок) и Настроек (переключатели).
+// Night Shift schedule: shared by SpringBoard (the engine) and Settings (the switches).
 
 #pragma once
 
 #import "S4EShared.h"
 
 #define kS4ENSScheduled @"NightShiftScheduled"
-#define kS4ENSFrom @"NightShiftFrom"            // минуты от полуночи
+#define kS4ENSFrom @"NightShiftFrom"            // minutes since midnight
 #define kS4ENSTo @"NightShiftTo"
-#define kS4ENSManualUntil @"NightShiftManualUntil" // включено вручную до (секунды с 1970)
-#define kS4ENSOffUntil @"NightShiftOffUntil"       // выключено вручную внутри расписания до
+#define kS4ENSManualUntil @"NightShiftManualUntil" // manually on until (seconds since 1970)
+#define kS4ENSOffUntil @"NightShiftOffUntil"       // manually off within the schedule until
 #define kS4ENSWarmth @"NightShiftWarmth"           // 0…1
 
 #define S4E_NS_DEFAULT_FROM (22 * 60)
@@ -25,10 +25,10 @@ static inline S4E_UNUSED BOOL S4ENSInWindow(int now, int from, int to) {
         return NO;
     if (from < to)
         return now >= from && now < to;
-    return now >= from || now < to; // окно через полночь
+    return now >= from || now < to; // the window spans midnight
 }
 
-// Ближайший момент строго после date, когда на часах minutes.
+// The nearest moment strictly after date when the clock shows minutes.
 static inline S4E_UNUSED NSDate *S4ENSNext(NSDate *date, int minutes) {
     NSCalendar *calendar = [NSCalendar currentCalendar];
     NSDateComponents *c = [calendar components:NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit fromDate:date];
@@ -57,8 +57,8 @@ static inline S4E_UNUSED BOOL S4ENSActive(NSDictionary *p, NSDate *now) {
     return S4ENSScheduledNow(p, now) && !(S4EDouble(p, kS4ENSOffUntil, 0) > t);
 }
 
-// Переключатель «Вручную включить до завтра» — как в iOS: включает до утра,
-// а выключение внутри расписания гасит его до конца текущего окна.
+// The "Manually Enable Until Tomorrow" switch, as in iOS: turns it on until morning,
+// and turning it off within the schedule keeps it off until the end of the current window.
 static inline S4E_UNUSED NSDictionary *S4ENSManualChanges(NSDictionary *p, BOOL on, NSDate *now) {
     NSNumber *endOfWindow = @([S4ENSNext(now, S4ENSTo(p)) timeIntervalSince1970]);
     if (on)

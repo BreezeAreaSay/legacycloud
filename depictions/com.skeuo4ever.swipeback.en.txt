@@ -1,0 +1,11 @@
+The gesture from iOS 7: swipe right from the left edge of the screen to go back to the previous screen.
+
+The animation is the iOS 6 one: both screens slide together, with a light shadow along the edge. Let go before the middle and the screen slides back.
+
+## When the gesture does not work
+- on an app's first screen;
+- when a custom button such as Cancel replaces the Back button — as in iOS 7;
+- right after the screen rotates: the gesture works again after the next transition.
+
+## Settings
+Settings → Skeuo4Ever → Swipe Back.

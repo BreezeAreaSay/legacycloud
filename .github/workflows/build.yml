@@ -1,9 +1,9 @@
-name: Сборка и Cydia-репозиторий
+name: Build and Cydia repository
 
-# main — исходники, gh-pages — опубликованный источник (пакеты всех версий и published.json).
-# Сборка из ветки по умолчанию дописывает новые версии в gh-pages, а Pages публикует эту ветку
-# (Settings → Pages → Deploy from a branch → gh-pages). Остальные сборки и пулл-реквесты
-# только проверяют, что публикация пройдёт.
+# main holds the sources, gh-pages the published repository (packages of every version and published.json).
+# A build from the default branch adds new versions to gh-pages, and Pages publishes that branch
+# (Settings → Pages → Deploy from a branch → gh-pages). Other builds and pull requests
+# only check that publishing would succeed.
 
 on:
   push:
@@ -26,12 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Зависимости Theos
+      - name: Theos dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential fakeroot rsync curl perl zip git libxml2 libtinfo6
 
-      - name: Theos, iOS-тулчейн и SDK 10.3 (последний с armv7)
+      - name: Theos, iOS toolchain and SDK 10.3 (the last one with armv7)
         run: |
           git clone --recursive --depth 1 --shallow-submodules https://github.com/theos/theos.git "$HOME/theos"
           curl -fsSL https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-x86_64.tar.xz \
@@ -41,7 +41,7 @@ jobs:
           mv /tmp/sdks/iPhoneOS10.3.sdk "$HOME/theos/sdks/"
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
 
-      - name: Сборка пакетов
+      - name: Build packages
         run: ./build.sh
 
       - uses: actions/upload-artifact@v4
@@ -49,7 +49,7 @@ jobs:
           name: debs
           path: debs/*.deb
 
-      - name: Опубликованное из gh-pages
+      - name: Fetch what is published on gh-pages
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -59,23 +59,23 @@ jobs:
           if git fetch -q --depth 1 origin gh-pages; then
             git checkout -q -b gh-pages FETCH_HEAD
           else
-            git symbolic-ref HEAD refs/heads/gh-pages # первая публикация: ветки ещё нет
+            git symbolic-ref HEAD refs/heads/gh-pages # first publication: the branch does not exist yet
           fi
 
-      - name: Cydia-репозиторий
+      - name: Cydia repository
         env:
           S4E_REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
         run: python3 scripts/make-repo.py debs site
 
-      - name: Сохранить в gh-pages
+      - name: Save to gh-pages
         if: env.PUBLISH == 'true'
         run: |
           cd site
           git add -A
           if git diff --cached --quiet; then
-            echo "Нового нет"
+            echo "Nothing new"
           else
             git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "Публикация ${GITHUB_SHA::7}"
+              commit -q -m "Publish ${GITHUB_SHA::7}"
             git push -q origin gh-pages
           fi

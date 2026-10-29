@@ -1,14 +1,14 @@
-// Пункт управления (iOS 7) в стиле iOS 6.
+// Control Center (iOS 7) in iOS 6 style.
 //
-// Раскладка iOS 7, материалы — как у Auxo: серый лён с желобками между секциями, квадратные кнопки
-// в серой оправе, синий глянец у включённых, кнопки музыки — белые тиснёные знаки.
-// Ползунки родные: UISlider и громкость MPVolumeView (с выбором вывода звука, например на AirPods),
-// только с тёмными дорожками, как у Auxo.
+// iOS 7 layout with Auxo-like materials: grey linen with grooves between sections, square buttons
+// in a grey bezel, blue gloss when on, music buttons as white embossed glyphs.
+// The sliders are native: UISlider and the MPVolumeView volume slider (with audio output picking, e.g. AirPods),
+// just with dark tracks, as in Auxo.
 //
-// Жест даёт Activator: в SpringBoard iOS 6 нет открытого способа добавить свой системный жест,
-// а прозрачное окно у края поверх программ касаний не получает. Пункт управления — действие
-// Activator; при первом запуске оно само встаёт на «Свайп вверх от низа», если тот свободен.
-// libactivator подгружаем через dlopen и берём классы через objc_getClass, без линковки.
+// The gesture comes from Activator: iOS 6 SpringBoard has no public way to add a custom system gesture,
+// and a transparent window at the screen edge above apps gets no touches. Control Center is an
+// Activator action; on first launch it assigns itself to "swipe up from the bottom" if that is free.
+// libactivator is loaded via dlopen and its classes are looked up via objc_getClass, without linking.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
@@ -25,7 +25,7 @@
 
 static const UIWindowLevel kS4ECCWindowLevel = 1050;
 
-#pragma mark - Приватные API SpringBoard iOS 6.1
+#pragma mark - iOS 6.1 SpringBoard private APIs
 
 @interface SBTelephonyManager : NSObject
 + (instancetype)sharedTelephonyManager;
@@ -73,7 +73,7 @@ static const UIWindowLevel kS4ECCWindowLevel = 1050;
 - (BOOL)hasTrack;
 @end
 
-// Activator (libactivator): только то, чем пользуемся
+// Activator (libactivator): only what we use
 @interface LAEvent : NSObject
 + (id)eventWithName:(NSString *)name mode:(NSString *)mode;
 @property(nonatomic, getter=isHandled) BOOL handled;
@@ -98,11 +98,11 @@ static const UIWindowLevel kS4ECCWindowLevel = 1050;
 - (void)activateApplicationAnimated:(SBApplication *)application;
 @end
 
-#pragma mark - Переключатели
+#pragma mark - Toggles
 
 typedef enum { S4ECCAirplane, S4ECCWiFi, S4ECCBluetooth, S4ECCDoNotDisturb, S4ECCRotationLock, S4ECCFlashlight } S4ECCToggle;
 
-// Wi-Fi: SBWiFiManager, если он есть, иначе MobileWiFi напрямую
+// Wi-Fi: SBWiFiManager if it exists, otherwise MobileWiFi directly
 typedef void *S4EWiFiClientRef;
 static S4EWiFiClientRef S4EWiFiClient(void) {
     static S4EWiFiClientRef client;
@@ -168,7 +168,7 @@ static void S4ESetTorch(BOOL on) {
     AVCaptureDevice *device = S4ETorchDevice();
     if (!device)
         return;
-    // Без запущенной сессии камеры фонарик на старых iOS гаснет сам
+    // Without a running camera session the torch turns itself off on older iOS
     if (on && !gTorchSession) {
         gTorchSession = [[AVCaptureSession alloc] init];
         AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:NULL];
@@ -267,7 +267,7 @@ static void S4ELaunch(NSString *identifier) {
         [ui activateApplicationAnimated:app];
 }
 
-#pragma mark - Панель
+#pragma mark - Panel
 
 @interface S4ECCPanel : UIView
 @property(nonatomic, copy) void (^onLaunch)(NSString *identifier);
@@ -306,7 +306,7 @@ static S4ECCButton *S4ECCMakeButton(S4ECCGlyph glyph, S4ECCButtonStyle style, NS
     return button;
 }
 
-// Ряд одинаковых кнопок с равными промежутками внутри rect
+// A row of identical buttons with equal gaps inside rect
 static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     CGFloat gap = (rect.size.width - buttons.count * size) / (buttons.count + 1);
     [buttons enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
@@ -326,7 +326,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     self.backgroundColor = S4ECCLinenColor();
     self.clipsToBounds = NO;
 
-    // Тень сверху и светлый кант
+    // Shadow on top and a light edge
     CAGradientLayer *shadow = [CAGradientLayer layer];
     shadow.frame = CGRectMake(0, -6, width, 6);
     shadow.colors = @[(id)[UIColor colorWithWhite:0 alpha:0].CGColor, (id)[UIColor colorWithWhite:0 alpha:0.5].CGColor];
@@ -335,7 +335,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     edge.backgroundColor = [UIColor colorWithWhite:1 alpha:0.18];
     [self addSubview:edge];
 
-    // Язычок: панель можно стянуть вниз
+    // Grabber: the panel can be pulled down
     UIView *grabber = [[UIView alloc] initWithFrame:CGRectMake(width / 2 - 18, 6, 36, 5)];
     grabber.backgroundColor = [UIColor colorWithWhite:0 alpha:0.6];
     grabber.layer.cornerRadius = 2.5;
@@ -343,7 +343,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     grabber.layer.borderWidth = 0.5;
     [self addSubview:grabber];
 
-    // Переключатели
+    // Toggles
     const S4ECCGlyph glyphs[] = {S4ECCGlyphAirplane, S4ECCGlyphWiFi, S4ECCGlyphBluetooth, S4ECCGlyphMoon, S4ECCGlyphRotationLock};
     const S4ECCToggle toggles[] = {S4ECCAirplane, S4ECCWiFi, S4ECCBluetooth, S4ECCDoNotDisturb, S4ECCRotationLock};
     NSMutableArray *switches = [NSMutableArray array];
@@ -351,7 +351,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
         [switches addObject:S4ECCMakeButton(glyphs[i], S4ECCButtonStyleSquare, toggles[i], self, @selector(toggleTapped:))];
     _switches = switches;
 
-    // Яркость — родной ползунок iOS 6
+    // Brightness: the native iOS 6 slider
     _brightness = [[UISlider alloc] initWithFrame:CGRectZero];
     _brightness.minimumValueImage = S4ECCGlyphImage(S4ECCGlyphSunSmall, 18, [UIColor colorWithWhite:1 alpha:0.8]);
     _brightness.maximumValueImage = S4ECCGlyphImage(S4ECCGlyphSunLarge, 22, [UIColor colorWithWhite:1 alpha:0.8]);
@@ -359,7 +359,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     [_brightness setMaximumTrackImage:S4ECCTrackImage(NO) forState:UIControlStateNormal];
     [_brightness addTarget:self action:@selector(brightnessChanged:) forControlEvents:UIControlEventValueChanged];
 
-    // Музыка: исполнитель, название, альбом и белые тиснёные кнопки
+    // Music: artist, title, album and white embossed buttons
     _artist = S4ECCLabel();
     _artist.textColor = [UIColor colorWithWhite:0.62 alpha:1];
     _title = S4ECCLabel();
@@ -368,7 +368,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     _album.textColor = [UIColor colorWithWhite:0.62 alpha:1];
     const S4ECCGlyph mediaGlyphs[] = {S4ECCGlyphPrevious, S4ECCGlyphPlay, S4ECCGlyphNext};
     NSMutableArray *media = [NSMutableArray array];
-    for (int i = 0; i < 3; i++) // tag: -1 назад, 0 пауза, 1 вперёд
+    for (int i = 0; i < 3; i++) // tag: -1 previous, 0 play/pause, 1 next
         [media addObject:S4ECCMakeButton(mediaGlyphs[i], S4ECCButtonStylePlain, i - 1, self, @selector(mediaTapped:))];
     _media = media;
     _playPause = media[1];
@@ -378,7 +378,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
         [_volume setMaximumVolumeSliderImage:S4ECCTrackImage(NO) forState:UIControlStateNormal];
     }
 
-    // Фонарик и быстрые программы
+    // Flashlight and quick-launch apps
     S4ECCButton *flashlight = S4ECCMakeButton(S4ECCGlyphFlashlight, S4ECCButtonStyleSquare, S4ECCFlashlight, self, @selector(toggleTapped:));
     _apps = @[flashlight,
               S4ECCMakeButton(S4ECCGlyphTimer, S4ECCButtonStyleSquare, 1, self, @selector(appTapped:)),
@@ -397,7 +397,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     return self;
 }
 
-// Портрет — как в iOS 7: всё одной колонкой, секции разделены желобками, как у Auxo
+// Portrait, as in iOS 7: everything in one column, sections separated by grooves, as in Auxo
 - (void)layoutPortrait:(CGFloat)width {
     S4ECCLayoutRow(_switches, CGRectMake(0, 20, width, 52), 52);
     _brightness.frame = CGRectMake(16, 86, width - 32, 23);
@@ -416,8 +416,8 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     S4ECCLayoutRow(_apps, CGRectMake(0, 284, width, 58), 58);
 }
 
-// Ландшафт — как iOS 7 на iPad: сверху в один ряд музыка, переключатели и программы,
-// под музыкой строка «исполнитель — песня», внизу громкость слева и яркость справа
+// Landscape, like iOS 7 on iPad: music, toggles and apps in a single row on top,
+// an "artist — song" line under the music, volume on the left and brightness on the right at the bottom
 - (void)layoutLandscape:(CGFloat)width {
     CGFloat music = 142, switches = 190, apps = width - music - switches;
     [_media enumerateObjectsUsingBlock:^(UIView *button, NSUInteger i, BOOL *stop) {
@@ -444,10 +444,10 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     SBMediaController *media = [objc_getClass("SBMediaController") sharedInstance];
     BOOL hasTrack = [media respondsToSelector:@selector(hasTrack)] && [media hasTrack];
     NSString *artist = hasTrack ? ([media nowPlayingArtist] ?: @"") : @"";
-    NSString *title = hasTrack ? ([media nowPlayingTitle] ?: @"") : @"Музыка";
+    NSString *title = hasTrack ? ([media nowPlayingTitle] ?: @"") : S4E_L(@"Music", @"Музыка");
     _playPause.glyph = (hasTrack && [media isPlaying]) ? S4ECCGlyphPause : S4ECCGlyphPlay;
     if (_landscape) {
-        // Одна строка: исполнитель серым, песня белым
+        // One line: artist in grey, song in white
         NSMutableAttributedString *line = [[NSMutableAttributedString alloc] init];
         if (artist.length)
             [line appendAttributedString:[[NSAttributedString alloc] initWithString:[artist stringByAppendingString:@" "]
@@ -463,7 +463,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
     }
     _artist.text = artist;
     _title.text = title;
-    // Альбом капителью с разрядкой, как подписи на стекле iOS 6
+    // Album in letter-spaced capitals, like captions on iOS 6 glass
     NSString *album = hasTrack && [media respondsToSelector:@selector(nowPlayingAlbum)] ? [[media nowPlayingAlbum] uppercaseString] : nil;
     _album.attributedText = [[NSAttributedString alloc] initWithString:album ?: @""
                                                             attributes:@{NSKernAttributeName: @2, NSFontAttributeName: _album.font,
@@ -474,7 +474,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
 - (void)toggleTapped:(S4ECCButton *)button {
     S4ESetToggle((S4ECCToggle)button.tag, !button.on);
     button.on = !button.on;
-    // Часть переключателей применяется не сразу — сверяемся через мгновение
+    // Some toggles don't apply right away, so check again a moment later
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self refresh];
     });
@@ -503,7 +503,7 @@ static void S4ECCLayoutRow(NSArray *buttons, CGRect rect, CGFloat size) {
 
 @end
 
-#pragma mark - Контроллер
+#pragma mark - Controller
 
 static NSString *S4EActivatorConstant(const char *name) {
     NSString *const *value = (NSString *const *)dlsym(RTLD_DEFAULT, name);
@@ -544,8 +544,8 @@ static NSString *S4EActivatorConstant(const char *name) {
     return _window && !_window.hidden;
 }
 
-// Окна SpringBoard не поворачиваются сами: поворачиваем содержимое под программу на экране.
-// _root — экран в ориентации программы; затемнение и панель живут в его координатах.
+// SpringBoard windows don't rotate by themselves: rotate the content to match the app on screen.
+// _root is the screen in the app's orientation; the dimming view and the panel live in its coordinates.
 - (void)buildWindowForOrientation:(UIInterfaceOrientation)orientation {
     CGRect screen = [self screen];
     if (!_window) {
@@ -578,7 +578,7 @@ static NSString *S4EActivatorConstant(const char *name) {
     CGSize size = _root.bounds.size;
     _panel = [[S4ECCPanel alloc] initWithFrame:CGRectMake(0, size.height, size.width, [S4ECCPanel heightForLandscape:landscape])
                                     landscape:landscape];
-    // Через синглтон, а не self: без цикла удержания и без __weak (на armv7 он требует таблиц SjLj)
+    // Via the singleton rather than self: no retain cycle and no __weak (on armv7 it needs SjLj tables)
     _panel.onLaunch = ^(NSString *identifier) {
         [[S4ECCController shared] hideAnimated:YES completion:^{
             S4ELaunch(identifier);
@@ -594,7 +594,7 @@ static NSString *S4EActivatorConstant(const char *name) {
     return _panel.frame.size.height;
 }
 
-// Пан по панели не должен мешать ползункам
+// Panning the panel must not get in the way of the sliders
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch {
     for (UIView *view = touch.view; view && view != _panel; view = view.superview)
         if ([view isKindOfClass:[UISlider class]] || [view isKindOfClass:[MPVolumeView class]])
@@ -603,7 +603,7 @@ static NSString *S4EActivatorConstant(const char *name) {
 }
 
 - (void)setPanelOffset:(CGFloat)offset {
-    // offset: 0 — закрыта, высота панели — открыта полностью
+    // offset: 0 is closed, the panel height is fully open
     CGFloat height = [self panelHeight];
     offset = MAX(0, MIN(height, offset));
     CGRect frame = _panel.frame;
@@ -695,7 +695,7 @@ static NSString *S4EActivatorConstant(const char *name) {
     event.handled = YES;
 }
 
-// «Домой», пока панель открыта, только закрывает её
+// Home while the panel is open only closes it
 - (void)activator:(LAActivator *)activator receiveDeactivateEvent:(LAEvent *)event {
     if (!self.visible)
         return;
@@ -704,25 +704,25 @@ static NSString *S4EActivatorConstant(const char *name) {
 }
 
 - (NSString *)activator:(LAActivator *)activator requiresLocalizedTitleForListenerName:(NSString *)listenerName {
-    return @"Пункт управления";
+    return S4E_L(@"Control Center", @"Пункт управления");
 }
 
 - (NSString *)activator:(LAActivator *)activator requiresLocalizedDescriptionForListenerName:(NSString *)listenerName {
-    return @"Переключатели, яркость, музыка и фонарик";
+    return S4E_L(@"Toggles, brightness, music and flashlight", @"Переключатели, яркость, музыка и фонарик");
 }
 
 - (NSString *)activator:(LAActivator *)activator requiresLocalizedGroupForListenerName:(NSString *)listenerName {
     return @"Skeuo4Ever";
 }
 
-// Не на экране блокировки: оттуда запуск программ и переключатели без разблокировки ни к чему
+// Not on the lock screen: launching apps and flipping toggles from there without unlocking makes no sense
 - (NSArray *)activator:(LAActivator *)activator requiresCompatibleEventModesForListenerWithName:(NSString *)listenerName {
     NSString *springBoard = S4EActivatorConstant("LAEventModeSpringBoard");
     NSString *application = S4EActivatorConstant("LAEventModeApplication");
     return springBoard && application ? @[springBoard, application] : @[];
 }
 
-// Иконка — кнопка панели со знаком ползунков
+// Icon: a panel button with the sliders glyph
 - (UIImage *)activator:(LAActivator *)activator requiresIconForListenerName:(NSString *)listenerName scale:(CGFloat)scale {
     S4ECCButton *button = [S4ECCButton buttonWithGlyph:S4ECCGlyphSliders style:S4ECCButtonStyleSquare];
     button.frame = CGRectMake(0, 0, 29, 29);
@@ -750,10 +750,10 @@ static LAActivator *S4EActivator(void) {
     return [objc_getClass("LAActivator") sharedInstance];
 }
 
-// Ставим Пункт управления на «Свайп вверх от низа» слева, по центру и справа — каждый жест, только
-// если он ещё ничем не занят, и каждый один раз: список уже назначенных хранится в настройках,
-// поэтому переназначенный потом жест больше не трогаем, а новые жесты по умолчанию доходят и до
-// старых установок.
+// Assign Control Center to "swipe up from the bottom" on the left, in the center and on the right: each gesture
+// only if nothing uses it yet, and each only once. The list of already assigned ones is kept in settings,
+// so a gesture the user reassigns later is never touched again, while new default gestures still reach
+// existing installs.
 static void S4EAssignDefaultGestures(void) {
     LAActivator *activator = S4EActivator();
     NSString *springBoard = S4EActivatorConstant("LAEventModeSpringBoard");
@@ -786,7 +786,7 @@ static void S4EAssignDefaultGestures(void) {
         S4EPrefsSet(kS4ECCActivatorEvents, handled);
 }
 
-// Кнопка «Домой» при открытой панели только закрывает её (если Activator не сделал этого раньше)
+// The Home button only closes the panel while it is open (unless Activator has already done that)
 static BOOL gSwallowMenuUp;
 
 static void (*orig_menuButtonDown)(id, SEL, void *);
@@ -833,6 +833,6 @@ __attribute__((constructor)) static void S4EControlCenterInit(void) {
         if ([activator respondsToSelector:@selector(registerListener:forName:)])
             [activator registerListener:[S4ECCController shared] forName:kS4ECCListener];
         else
-            S4ELog(@"Activator не найден: Пункт управления открыть нечем");
+            S4ELog(@"Activator not found: nothing can open Control Center");
     }
 }

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Рисует иконки в стиле iOS 6: глянцевый скруглённый квадрат и белый знак с мягкой тенью.
+"""Draws iOS 6 style icons: a glossy rounded square with a white glyph and a soft shadow.
 
-  repo/CydiaIcon.png        — иконка источника (та же «6», что у пункта Skeuo4Ever в Настройках)
-  icons/<пакет>.png         — иконки пакетов для Cydia и страниц пакетов
+  repo/CydiaIcon.png        the repo icon (the same infinity sign as the Skeuo4Ever item in Settings)
+  icons/<package>.png       package icons for Cydia and the package pages
 
-Рисуем в 8 раз крупнее и уменьшаем, чтобы края были сглаженными.
-Использование: scripts/make-icons.py
+Drawn 8 times larger and scaled down, so the edges are antialiased.
+Usage: scripts/make-icons.py
 """
 
 import math
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SIZE = 64
 K = 8
 S = SIZE * K
-U = S / 29  # единица — пункт иконки 29×29, как в S4ESettings.m
+U = S / 29  # one unit is a point of a 29×29 icon, as in S4ESettings.m
 WHITE = 255
 
 
@@ -34,19 +34,19 @@ def p(x, y):
     return (x * U, y * U)
 
 
-# Знаки рисуются белым на маске в координатах 29×29
+# Glyphs are drawn in white on a mask, in 29×29 coordinates
 
-def glyph_revive(d):
+def glyph_infinity(d):
+    # Skeuomorphism forever: a lemniscate of Bernoulli, the same curve as in S4ESettings.m
     cx = cy = 14.5
-    radius, width = 10, 2.2
-    start, end = -90 + math.degrees(0.5), -90 - math.degrees(0.25) + 360
-    d.arc([p(cx - radius, cy - radius), p(cx + radius, cy + radius)], start=start, end=end, fill=WHITE, width=round(width * U))
-    a = math.radians(end)
-    tip = (cx + radius * math.cos(a), cy + radius * math.sin(a))
-    t, n = (-math.sin(a), math.cos(a)), (math.cos(a), math.sin(a))
-    d.polygon([p(tip[0] + t[0] * 3.6, tip[1] + t[1] * 3.6), p(tip[0] + n[0] * 3.2, tip[1] + n[1] * 3.2),
-               p(tip[0] - n[0] * 3.2, tip[1] - n[1] * 3.2)], fill=WHITE)
-    text(d, "6", 14)
+    a = 10.5
+    points = []
+    for i in range(193):
+        t = 2 * math.pi * i / 192
+        sine, cosine = math.sin(t), math.cos(t)
+        dd = 1 + sine * sine
+        points.append(p(cx + a * cosine / dd, cy + a * 1.15 * sine * cosine / dd))
+    d.line(points, fill=WHITE, width=round(2.6 * U), joint="curve")
 
 
 def text(d, string, size, dy=0):
@@ -56,7 +56,7 @@ def text(d, string, size, dy=0):
 
 
 def glyph_back(d):
-    # Стрелка «назад»: наконечник и древко
+    # A back arrow: head and shaft
     d.polygon([p(5.5, 14.5), p(13.5, 7), p(13.5, 11.5), p(23, 11.5), p(23, 17.5), p(13.5, 17.5), p(13.5, 22)], fill=WHITE)
 
 
@@ -73,9 +73,9 @@ def glyph_moon(d):
 
 
 def glyph_new_app(d):
-    # Иконка программы и лента «Новое» наискосок через правый верхний угол
+    # An app icon with the "New" sash across its upper right corner
     d.rounded_rectangle([p(4.5, 4.5), p(24.5, 24.5)], radius=4 * U, outline=WHITE, width=round(1.8 * U))
-    # Зазор вокруг ленты, чтобы она читалась поверх рамки
+    # A gap around the sash so it reads over the frame
     d.polygon([p(9.5, 2), p(17.5, 2), p(27, 11.5), p(27, 19.5)], fill=0)
     d.polygon([p(11.5, 3), p(16.5, 3), p(26, 12.5), p(26, 17.5)], fill=WHITE)
 
@@ -91,14 +91,14 @@ def glyph_monitor(d):
 
 
 def glyph_controls(d):
-    # Два ползунка, как в Пункте управления
+    # Two sliders, as in Control Center
     for y, knob in ((9, 16), (17, 9)):
         d.rounded_rectangle([p(4, y - 1.2), p(25, y + 1.2)], radius=1.2 * U, fill=WHITE)
         d.ellipse([p(knob - 3.2, y - 3.2), p(knob + 3.2, y + 3.2)], fill=WHITE)
 
 
 def glyph_cursor(d):
-    # Текстовый курсор и стрелки по бокам
+    # A text cursor with arrows on both sides
     d.rectangle([p(13.6, 5), p(15.4, 24)], fill=WHITE)
     d.rectangle([p(11, 4), p(18, 5.6)], fill=WHITE)
     d.rectangle([p(11, 23.4), p(18, 25)], fill=WHITE)
@@ -107,7 +107,7 @@ def glyph_cursor(d):
 
 
 def glyph_markup(d):
-    # Уголки кадра скриншота и карандаш наискосок
+    # Screenshot frame corners and a pencil across them
     w = round(1.8 * U)
     for x0, y0, dx, dy in ((5, 5, 1, 1), (24, 5, -1, 1), (5, 24, 1, -1), (24, 24, -1, -1)):
         d.line([p(x0, y0), p(x0 + 5 * dx, y0)], fill=WHITE, width=w)
@@ -116,13 +116,9 @@ def glyph_markup(d):
     d.polygon([p(10, 17.5), p(12, 19.5), p(8.5, 21)], fill=WHITE)
 
 
-def glyph_bolt(d):
-    d.polygon([p(16.5, 3.5), p(7.5, 16), p(13.5, 16), p(11.5, 25.5), p(21.5, 12.5), p(15.5, 12.5)], fill=WHITE)
-
-
 ICONS = {
-    "repo/CydiaIcon.png": ((115, 199, 252), (26, 112, 214), glyph_revive),
-    "icons/com.skeuo4ever.core.png": ((115, 199, 252), (26, 112, 214), glyph_revive),
+    "repo/CydiaIcon.png": ((115, 199, 252), (26, 112, 214), glyph_infinity),
+    "icons/com.skeuo4ever.core.png": ((115, 199, 252), (26, 112, 214), glyph_infinity),
     "icons/com.skeuo4ever.swipeback.png": ((150, 168, 196), (78, 99, 135), glyph_back),
     "icons/com.skeuo4ever.battery.png": ((255, 222, 92), (238, 160, 0), glyph_battery),
     "icons/com.skeuo4ever.nightshift.png": ((72, 92, 160), (18, 26, 66), glyph_moon),
@@ -132,7 +128,7 @@ ICONS = {
     "icons/com.skeuo4ever.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
     "icons/com.skeuo4ever.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
     "icons/com.skeuo4ever.screenshot.png": ((196, 150, 245), (112, 62, 190), glyph_markup),
-    "icons/com.skeuo4ever.png": ((255, 176, 70), (232, 98, 18), glyph_bolt),
+    "icons/com.skeuo4ever.png": ((255, 176, 70), (232, 98, 18), glyph_infinity),
 }
 
 
@@ -154,7 +150,7 @@ def render(top, bottom, glyph):
     icon = Image.composite(Image.new("RGBA", (S, S), (0, 0, 0, 255)), icon, shadow)
     icon = Image.composite(Image.new("RGBA", (S, S), (255, 255, 255, 255)), icon, mask)
 
-    # Глянец: светлый овал сверху
+    # Gloss: a light oval on top
     gloss = Image.new("L", (S, S), 0)
     ImageDraw.Draw(gloss).ellipse([-0.5 * S, -0.75 * S, 1.5 * S, 0.5 * S], fill=255)
     fade = Image.new("L", (S, S), 0)

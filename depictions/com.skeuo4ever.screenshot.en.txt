@@ -1,0 +1,14 @@
+The screenshot preview from iOS 11, built the iOS 6 way. After a screenshot (Home + Power), it shrinks into the lower left corner and sits there like a photo in a white frame.
+
+- Tap the thumbnail to mark it up;
+- swipe it left — the thumbnail goes away and the screenshot is saved to Photos;
+- tap the cross in its corner — the screenshot is deleted right away and never reaches Photos;
+- do nothing — after 5 seconds the thumbnail goes away by itself.
+
+## Markup
+Black translucent bars, like Photos when you view a picture. On top: pen, marker and eraser; at the bottom: undo and six glossy colors. The eraser removes a whole mark, as in iOS 11.
+
+Done, as in iOS 11, always asks whether to save the screenshot to Photos or delete it. The trash can at the top right deletes it too. As in iOS 11, while the thumbnail is on screen the screenshot is not in Photos yet: a deleted screenshot never gets there. If you press Home or lock the phone, the screenshot is saved with your marks — nothing is lost.
+
+## Settings
+Settings → Skeuo4Ever → Screenshot Preview.

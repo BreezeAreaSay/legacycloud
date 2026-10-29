@@ -1,0 +1,8 @@
+The native iOS 6 "New" sash — on every new app. iOS 6 itself only puts it on what SpringBoard has marked as new: on ipa apps it shows up now and then, and on Cydia apps never.
+
+With this package the sash appears on any freshly installed app — from the App Store, an ipa or Cydia — and disappears after the first launch, the way iOS 6 intended. It is the same picture SpringBoard draws, in the same place. If the icon already has a badge, the sash does not cover it.
+
+When the package is first installed, all apps already on the device count as old.
+
+## Settings
+Settings → Skeuo4Ever → New App Sash.

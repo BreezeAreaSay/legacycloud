@@ -1,4 +1,4 @@
-/* iOS6Revive: сгруппированная таблица iOS 6 на «полосках». Только то, что понимает Safari из iOS 6. */
+/* Skeuo4Ever: the iOS 6 grouped table on pinstripes. Only what iOS 6 Safari understands. */
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -68,7 +68,7 @@ code { color: #385487; font-family: inherit; word-wrap: break-word; }
 }
 .footer { margin: 9px 10px 0; font-size: 14px; text-align: center; color: #4c566c; text-shadow: 0 1px 0 #fff; }
 
-/* Страницы пакетов */
+/* Package pages */
 .group p { margin: 0; padding: 11px 10px; font-size: 15px; line-height: 1.35; border-top: 1px solid #e0e0e0; }
 .group p:first-child { border-top: 0; }
 .group ul { margin: 0; padding: 9px 10px 9px 28px; font-size: 15px; line-height: 1.35; border-top: 1px solid #e0e0e0; }
@@ -81,3 +81,11 @@ code { color: #385487; font-family: inherit; word-wrap: break-word; }
 .group > li.pkg { padding-left: 58px; min-height: 36px; position: relative; }
 .group > li.pkg img { position: absolute; left: 10px; top: 11px; width: 36px; height: 36px; border-radius: 7px; }
 .depiction .hero { padding-top: 4px; }
+
+/* Language: English by default; language.js sets <html lang> from the switch or the system language */
+html[lang="en"] .lang-ru, html[lang="ru"] .lang-en { display: none; }
+.group li.row span.lang-en, .group li.row span.lang-ru, .group b span { color: inherit; }
+.languages { margin: 0 10px 10px; text-align: right; font-size: 14px; color: #4c566c; text-shadow: 0 1px 0 #fff; }
+.languages a { color: #385487; text-decoration: none; }
+.languages a.current { font-weight: bold; color: #4c566c; }
+.manifesto { padding: 11px 10px; font-size: 15px; line-height: 1.4; }

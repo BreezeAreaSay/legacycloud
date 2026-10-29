@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Собирает все пакеты Skeuo4Ever в ./debs.
-# Нужен Theos (переменная THEOS) с iOS-тулчейном и SDK iPhoneOS10.3.
-# Версия пакета — поле Version в его control. Чтобы выпустить новую версию, подними его.
-# Рядом с пакетами кладётся debs/sources.json: отпечатки исходников, по ним публикация
-# отличает пересборку того же кода от изменений (см. scripts/make-repo.py).
+# Builds all Skeuo4Ever packages into ./debs.
+# Requires Theos (the THEOS variable) with an iOS toolchain and the iPhoneOS10.3 SDK.
+# A package's version is the Version field in its control file. To release a new version, bump it.
+# debs/sources.json is written next to the packages: source fingerprints that let publishing
+# tell a rebuild of the same code from actual changes (see scripts/make-repo.py).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-: "${THEOS:?укажите путь к Theos в переменной THEOS}"
+: "${THEOS:?set the THEOS variable to the path to Theos}"
 OUT="$ROOT/debs"
 
-# Заглушки theos/sdks потеряли 32-битные символы рантайма — возвращаем их (повторно ничего не меняет)
+# The theos/sdks stubs lost the 32-bit runtime symbols: put them back (running it again changes nothing)
 python3 "$ROOT/scripts/fix-sdk.py" "$THEOS/sdks/iPhoneOS10.3.sdk"
 
 rm -rf "$OUT"
@@ -26,9 +26,9 @@ for dir in "$ROOT"/tweaks/*/; do
     cp "$dir"/packages/*.deb "$OUT/"
 done
 
-# Мета-пакеты без кода собираем напрямую
+# Meta packages have no code, so they are built directly
 for dir in "$ROOT"/meta/*/; do
-    echo "==> $(basename "$dir") (мета)"
+    echo "==> $(basename "$dir") (meta)"
     stage="$(mktemp -d)"
     mkdir -p "$stage/DEBIAN"
     cp "$dir/control" "$stage/DEBIAN/control"

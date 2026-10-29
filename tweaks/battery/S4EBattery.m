@@ -1,7 +1,7 @@
-// Режим энергосбережения (iOS 9).
-//  * Во всех программах: заливка батарейки в строке состояния становится жёлтой.
-//  * В SpringBoard: кнопка «Энергосбережение» в предупреждении о низком заряде, снижение яркости,
-//    автоблокировка через минуту и автоматическое выключение при зарядке до 80 %.
+// Low Power Mode (iOS 9).
+//  * In every app: the battery fill in the status bar turns yellow.
+//  * In SpringBoard: a Low Power Mode button in the low battery alert, lower brightness,
+//    Auto-Lock after one minute and automatic turn-off when charged to 80 %.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
@@ -13,11 +13,11 @@
 
 static BOOL gLowPower;
 
-#pragma mark - Жёлтая батарейка
+#pragma mark - Yellow battery
 
-// Перекрашивает только заливку уровня, контур и тень остаются родными.
-// Корпус батарейки находим по самой длинной горизонтальной линии основного цвета —
-// это верхний или нижний край контура (молния и «носик» короче).
+// Recolors only the level fill; the outline and shadow stay native.
+// The battery body is found by the longest horizontal line in the main color —
+// that is the top or bottom edge of the outline (the bolt and the "nub" are shorter).
 static UIImage *S4ETintBattery(UIImage *image) {
     CGImageRef source = image.CGImage;
     if (!source)
@@ -35,7 +35,7 @@ static UIImage *S4ETintBattery(UIImage *image) {
         goto done;
     CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), source);
 
-    // 1. Основной цвет значка — самый частый среди непрозрачных пикселей (строка 0 в памяти — верх картинки).
+    // 1. The icon's main color is the most frequent one among opaque pixels (row 0 in memory is the top of the image).
     {
         static uint32_t histogram[4096];
         memset(histogram, 0, sizeof(histogram));
@@ -57,7 +57,7 @@ static UIImage *S4ETintBattery(UIImage *image) {
         #define S4E_IS_GLYPH(x, y) ({ uint8_t *q = pixels + ((y) * width + (x)) * 4; \
             q[3] >= 128 && abs(q[0] - r) <= 48 && abs(q[1] - g) <= 48 && abs(q[2] - b) <= 48; })
 
-        // 2. Самая длинная горизонтальная линия — край корпуса.
+        // 2. The longest horizontal line is the edge of the body.
         size_t lineStart = 0, lineLength = 0;
         for (size_t y = 0; y < height; y++) {
             size_t run = 0;
@@ -72,7 +72,7 @@ static UIImage *S4ETintBattery(UIImage *image) {
         if (lineLength < 6)
             goto done;
 
-        // 3. Верх и низ корпуса — строки, где основной цвет закрывает почти всю ширину.
+        // 3. The top and bottom of the body are the rows where the main color covers almost the whole width.
         size_t top = height, bottom = 0;
         for (size_t y = 0; y < height; y++) {
             size_t count = 0;
@@ -89,7 +89,7 @@ static UIImage *S4ETintBattery(UIImage *image) {
         if (top >= bottom || bottom - top + 1 < 3 * inset || lineLength * 2 < (bottom - top + 1) * 3)
             goto done;
 
-        // 4. Внутри контура закрашиваем то, что уже нарисовано (заливку уровня), жёлтым глянцем.
+        // 4. Inside the outline, paint over what is already drawn (the level fill) with a yellow gloss.
         CGRect inside = CGRectMake(lineStart + inset, height - bottom - 1 + inset,
                                    lineLength - 2 * inset, bottom - top + 1 - 2 * inset);
         CGContextSaveGState(ctx);
@@ -125,8 +125,8 @@ static id hook_contentsImageForStyle(UIStatusBarItemView *self, SEL _cmd, int st
     return S4ETintBattery(image) ?: image;
 }
 
-// Значок нарисован в другом режиме — говорим UIKit, что его надо перерисовать.
-// Тогда картинку, ширину и раскладку строки состояния пересчитывает сам UIKit.
+// The icon was drawn in the other mode — tell UIKit it needs to be redrawn.
+// UIKit then recalculates the image, the width and the status bar layout by itself.
 static BOOL (*orig_updateForNewData)(UIStatusBarItemView *, SEL, id, int);
 static BOOL hook_updateForNewData(UIStatusBarItemView *self, SEL _cmd, id data, int actions) {
     BOOL changed = orig_updateForNewData(self, _cmd, data, actions);
@@ -149,7 +149,7 @@ static void S4EStateChanged(CFNotificationCenterRef center, void *observer, CFSt
     S4ERefreshBatteryViews();
 }
 
-#pragma mark - SpringBoard: яркость и автоблокировка
+#pragma mark - SpringBoard: brightness and Auto-Lock
 
 static BOOL gEffectsApplied;
 
@@ -186,7 +186,7 @@ static void S4EApplyEffects(BOOL on) {
     NSMutableDictionary *changes = [NSMutableDictionary dictionary];
 
     if (on) {
-        // Автоблокировка: минимум, который есть в iOS 6, — одна минута.
+        // Auto-Lock: the minimum iOS 6 offers is one minute.
         NSNumber *autoLock = canUseMC ? [mc effectiveValueForSetting:setting] : nil;
         if ([autoLock isKindOfClass:[NSNumber class]] && (autoLock.intValue > 60 || autoLock.intValue <= 0)) {
             changes[kS4ESavedAutoLock] = autoLock;
@@ -204,7 +204,7 @@ static void S4EApplyEffects(BOOL on) {
         NSNumber *savedAutoLock = prefs[kS4ESavedAutoLock];
         if (canUseMC && savedAutoLock && [[mc effectiveValueForSetting:setting] intValue] == 60)
             [mc setValue:savedAutoLock forSetting:setting];
-        // Яркость возвращаем, только если пользователь сам её не менял.
+        // Restore the brightness only if the user hasn't changed it in the meantime.
         NSNumber *saved = prefs[kS4ESavedBrightness], *dimmed = prefs[kS4EDimmedBrightness];
         if (saved && dimmed && fabsf(S4EBrightness() - dimmed.floatValue) < 0.03f)
             S4ESetBrightness(saved.floatValue);
@@ -222,7 +222,7 @@ static void S4ESpringBoardPrefsChanged(CFNotificationCenterRef center, void *obs
     S4EApplyEffects(on);
 }
 
-#pragma mark - SpringBoard: предупреждение о низком заряде
+#pragma mark - SpringBoard: low battery alert
 
 static const void *kS4EButtonIndexKey = &kS4EButtonIndexKey;
 
@@ -234,8 +234,8 @@ static void hook_configure(SBLowPowerAlertItem *self, SEL _cmd, BOOL configure, 
     UIAlertView *sheet = [self alertSheet];
     if (![sheet isKindOfClass:[UIAlertView class]])
         return;
-    // Алерт настраивается заново после разблокировки — не добавляем кнопку второй раз.
-    NSString *title = @"Энергосбережение";
+    // The alert is configured again after unlocking — don't add the button a second time.
+    NSString *title = S4E_L(@"Low Power Mode", @"Энергосбережение");
     NSInteger index = -1;
     for (NSInteger i = 0; i < sheet.numberOfButtons; i++)
         if ([[sheet buttonTitleAtIndex:i] isEqualToString:title])
@@ -257,9 +257,9 @@ static void hook_clicked(SBLowPowerAlertItem *self, SEL _cmd, UIAlertView *alert
         [self dismiss];
 }
 
-#pragma mark - SpringBoard: выключение при 80 %
+#pragma mark - SpringBoard: turning off at 80 %
 
-// Как в iOS 9: выключаемся, когда заряд на зарядке переходит через 80 %, а не сразу после включения.
+// As in iOS 9: turn off when the charge crosses 80 % while charging, not right after being turned on.
 static int gLastPercent = -1;
 
 static void (*orig_updateBatteryState)(SBUIController *, SEL, id);
@@ -286,7 +286,7 @@ __attribute__((constructor)) static void S4EBatteryInit(void) {
 
         if (!S4EIsProcess(@"com.apple.springboard"))
             return;
-        gEffectsApplied = S4EBool(S4EPrefsRead(), kS4ELowPower, NO); // эффекты уже применены до перезапуска
+        gEffectsApplied = S4EBool(S4EPrefsRead(), kS4ELowPower, NO); // the effects were already applied before the restart
         S4EObserveDarwin(S4E_NOTIFY_PREFS, S4ESpringBoardPrefsChanged);
         Class alert = objc_getClass("SBLowPowerAlertItem");
         S4E_HOOK(alert, @selector(configure:requirePasscodeForActions:), hook_configure, &orig_configure);

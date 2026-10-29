@@ -1,14 +1,14 @@
-// Курсор свайпом по клавиатуре (iOS 12): ведите пальцем по пробелу — курсор едет по тексту,
-// влево-вправо по символам и вверх-вниз по строкам. Свайп от Shift выделяет текст.
-// Обычное нажатие на пробел и Shift работает как раньше: жест начинается, только когда палец поехал.
+// Moving the cursor by swiping on the keyboard (iOS 12): slide a finger along the space bar and the cursor
+// moves through the text, left and right by characters, up and down by lines. A swipe from Shift selects text.
+// A normal tap on space or Shift works as before: the gesture begins only once the finger moves.
 
 #import "S4EShared.h"
 #include <dlfcn.h>
 
 #define kS4EKeyboardCursor @"KeyboardCursor"
 
-static const CGFloat kS4EStepX = 9;   // точек на символ
-static const CGFloat kS4EStepY = 24;  // точек на строку
+static const CGFloat kS4EStepX = 9;   // points per character
+static const CGFloat kS4EStepY = 24;  // points per line
 static const void *kS4ERecognizerKey = &kS4ERecognizerKey;
 
 @interface UIKBTree : NSObject
@@ -27,7 +27,7 @@ static const void *kS4ERecognizerKey = &kS4ERecognizerKey;
 
 static BOOL gEnabled = YES;
 
-// Поля в Safari и других веб-страницах живут в WebKit: трогать их можно только под WebThreadLock()
+// Fields in Safari and other web pages live in WebKit: they may only be touched under WebThreadLock()
 static void S4EWebThreadLock(void) {
     static void (*lock)(void);
     static dispatch_once_t once;
@@ -149,7 +149,7 @@ static void hook_didMoveToWindow(UIView *self, SEL _cmd) {
         [[S4ECursorHandler shared] attachTo:self];
 }
 
-// Флаг из plist; если программа в песочнице не может его прочитать — включено.
+// The flag comes from the plist; if a sandboxed app cannot read it, the feature is on.
 static void S4EReload(void) {
     gEnabled = S4EBool(S4EPrefsRead(), kS4EKeyboardCursor, YES);
 }

@@ -1,14 +1,15 @@
-// Разметка скриншота: холст с пометками и панели инструментов.
+// Screenshot markup: the annotation canvas and the toolbars.
 //
-// Пометки хранятся в координатах самого снимка, поэтому сохраняются в полном разрешении.
-// Ластик, как в iOS 11, стирает пометку целиком. Отмена откатывает и рисование, и стирание.
+// Annotations are stored in the shot's own coordinates, so they are saved at full resolution.
+// As in iOS 11, the eraser removes a whole annotation. Undo reverts both drawing and erasing.
 
+#import "S4EShared.h"
 #import "S4EMarkup.h"
 #import <QuartzCore/QuartzCore.h>
 
 typedef enum { S4EMarkupPen, S4EMarkupMarker, S4EMarkupEraser } S4EMarkupTool;
 
-#pragma mark - Знаки инструментов
+#pragma mark - Tool glyphs
 
 static UIImage *S4EMarkupIcon(void (^draw)(CGContextRef ctx)) {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(22, 22), NO, 0);
@@ -71,7 +72,7 @@ static UIImage *S4EUndoIcon(void) {
     });
 }
 
-#pragma mark - Холст
+#pragma mark - Canvas
 
 @interface S4EStroke : NSObject
 @property(nonatomic, strong) UIBezierPath *path;
@@ -84,11 +85,11 @@ static UIImage *S4EUndoIcon(void) {
 
 static void S4EDrawStroke(S4EStroke *stroke) {
     [stroke.color setStroke];
-    // Один проход по всему пути: маркер не темнеет там, где линия сама себя пересекает
+    // A single pass over the whole path: the marker doesn't get darker where the line crosses itself
     [stroke.path strokeWithBlendMode:kCGBlendModeNormal alpha:stroke.marker ? 0.45 : 1];
 }
 
-// Сообщает об изменениях через UIControlEventValueChanged
+// Reports changes via UIControlEventValueChanged
 @interface S4EMarkupCanvas : UIControl
 @property(nonatomic) S4EMarkupTool tool;
 @property(nonatomic, strong) UIColor *color;
@@ -150,7 +151,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     return _history.count > 0;
 }
 
-#pragma mark Рисование
+#pragma mark Drawing
 
 - (void)drawStrokes:(NSArray *)strokes inContext:(CGContextRef)ctx frame:(CGRect)frame {
     CGContextSaveGState(ctx);
@@ -162,7 +163,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     CGContextRestoreGState(ctx);
 }
 
-// Снимок с готовыми пометками кешируется: при рисовании поверх него рисуется только текущая линия
+// The shot with the finished annotations is cached: while drawing, only the current line is drawn over it
 - (UIImage *)renderCache {
     UIGraphicsBeginImageContextWithOptions(self.bounds.size, YES, 0);
     CGContextRef ctx = UIGraphicsGetCurrentContext();
@@ -206,7 +207,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     return result;
 }
 
-#pragma mark Касания
+#pragma mark Touches
 
 - (void)eraseAt:(CGPoint)point {
     CGFloat reach = 12 / [self scale];
@@ -236,12 +237,12 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     stroke.marker = self.tool == S4EMarkupMarker;
     stroke.color = self.color;
     UIBezierPath *path = [UIBezierPath bezierPath];
-    // Толщина — доля ширины снимка: одинаково выглядит и на экране, и в сохранённой картинке
+    // Line width is a fraction of the shot's width: it looks the same on screen and in the saved image
     path.lineWidth = _image.size.width * (stroke.marker ? 0.05 : 0.012);
     path.lineCapStyle = kCGLineCapRound;
     path.lineJoinStyle = kCGLineJoinRound;
     [path moveToPoint:point];
-    [path addLineToPoint:point]; // простое касание оставляет точку
+    [path addLineToPoint:point]; // a simple tap leaves a dot
     stroke.path = path;
     _current = stroke;
     _previous = point;
@@ -256,7 +257,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     }
     if (!_current)
         return;
-    // Сглаживание: кривая через середины отрезков
+    // Smoothing: a curve through the midpoints of the segments
     CGPoint middle = CGPointMake((_previous.x + point.x) / 2, (_previous.y + point.y) / 2);
     [_current.path addQuadCurveToPoint:middle controlPoint:_previous];
     _previous = point;
@@ -292,9 +293,9 @@ static void S4EDrawStroke(S4EStroke *stroke) {
 
 @end
 
-#pragma mark - Цвета
+#pragma mark - Colors
 
-// Глянцевая капля цвета, как кнопки iOS 6; у выбранной — белое кольцо
+// A glossy drop of color, like iOS 6 buttons; the selected one gets a white ring
 @interface S4EMarkupSwatch : UIControl
 @property(nonatomic, strong) UIColor *color;
 @end
@@ -345,7 +346,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
 
 @end
 
-#pragma mark - Экран разметки
+#pragma mark - Markup screen
 
 @interface S4EMarkupView () <UIActionSheetDelegate>
 @end
@@ -371,12 +372,12 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     [_canvas addTarget:self action:@selector(canvasChanged) forControlEvents:UIControlEventValueChanged];
     [self addSubview:_canvas];
 
-    // Сверху «Готово», инструменты и корзина — как панель «Фото» при просмотре снимка
+    // On top: Done, the tools and the trash, like the Photos bar when viewing a picture
     _bar = [[UINavigationBar alloc] initWithFrame:CGRectZero];
     _bar.barStyle = UIBarStyleBlack;
     _bar.translucent = YES;
     UINavigationItem *item = [[UINavigationItem alloc] initWithTitle:@""];
-    item.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Готово" style:UIBarButtonItemStyleDone
+    item.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:S4E_L(@"Done", @"Готово") style:UIBarButtonItemStyleDone
                                                              target:self action:@selector(doneTapped)];
     if (canDelete)
         item.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemTrash
@@ -391,7 +392,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     _bar.items = @[item];
     [self addSubview:_bar];
 
-    // Снизу отмена и шесть цветов, как у разметки iOS 11
+    // At the bottom: undo and six colors, as in iOS 11 markup
     NSArray *colors = @[[UIColor blackColor], [UIColor whiteColor], [UIColor colorWithRed:0.16 green:0.47 blue:0.96 alpha:1],
                         [UIColor colorWithRed:0.20 green:0.75 blue:0.25 alpha:1], [UIColor colorWithRed:1 green:0.80 blue:0 alpha:1],
                         [UIColor colorWithRed:0.92 green:0.16 blue:0.14 alpha:1]];
@@ -460,7 +461,7 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     [_canvas undo];
 }
 
-#pragma mark Готово и корзина
+#pragma mark Done and trash
 
 - (void)showSheet:(UIActionSheet *)sheet {
     [self dismissSheet];
@@ -469,22 +470,24 @@ static void S4EDrawStroke(S4EStroke *stroke) {
     [sheet showInView:self];
 }
 
-// Как в iOS 11: пока снимка нет в «Фото», «Готово» всегда спрашивает — сохранить или удалить
+// As in iOS 11: while the shot is not in Photos, Done always asks whether to save or delete it
 - (void)doneTapped {
     if (!_canDelete && !self.edited) {
         [self finish:S4EMarkupKeep];
         return;
     }
     [self showSheet:_canDelete
-        ? [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Отменить"
-                        destructiveButtonTitle:@"Удалить скриншот" otherButtonTitles:@"Сохранить в Фото", nil]
-        : [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Отменить"
-                        destructiveButtonTitle:@"Не сохранять пометки" otherButtonTitles:@"Сохранить копию в Фото", nil]];
+        ? [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:S4E_L(@"Cancel", @"Отменить")
+                        destructiveButtonTitle:S4E_L(@"Delete Screenshot", @"Удалить скриншот")
+                             otherButtonTitles:S4E_L(@"Save to Photos", @"Сохранить в Фото"), nil]
+        : [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:S4E_L(@"Cancel", @"Отменить")
+                        destructiveButtonTitle:S4E_L(@"Don't Save Markup", @"Не сохранять пометки")
+                             otherButtonTitles:S4E_L(@"Save Copy to Photos", @"Сохранить копию в Фото"), nil]];
 }
 
 - (void)trashTapped {
-    [self showSheet:[[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"Отменить"
-                                  destructiveButtonTitle:@"Удалить скриншот" otherButtonTitles:nil]];
+    [self showSheet:[[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:S4E_L(@"Cancel", @"Отменить")
+                                  destructiveButtonTitle:S4E_L(@"Delete Screenshot", @"Удалить скриншот") otherButtonTitles:nil]];
 }
 
 - (void)actionSheet:(UIActionSheet *)sheet clickedButtonAtIndex:(NSInteger)index {

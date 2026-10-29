@@ -1,6 +1,6 @@
-// Пункт управления: знаки и материалы в стиле iOS 6.
-// Материалы — как у Auxo: серый лён, квадратные кнопки в серой оправе с текстурным полем,
-// синий глянец у включённых, кнопки музыки — просто белые тиснёные знаки.
+// Control Center: glyphs and materials in iOS 6 style.
+// Auxo-like materials: grey linen, square buttons in a grey bezel with a textured field,
+// blue gloss when on, music buttons are just white embossed glyphs.
 
 #pragma once
 
@@ -25,24 +25,24 @@ typedef enum {
     S4ECCGlyphSliders,
 } S4ECCGlyph;
 
-// Рисует знак текущим цветом в квадрате rect (координаты знаков — сетка 24×24).
+// Draws a glyph in the current color in the square rect (glyph coordinates use a 24×24 grid).
 void S4ECCDrawGlyph(S4ECCGlyph glyph, CGRect rect);
 
-// Картинка знака: для ползунка яркости, иконки в Activator и т. п.
+// A glyph image: for the brightness slider, the Activator icon, etc.
 UIImage *S4ECCGlyphImage(S4ECCGlyph glyph, CGFloat size, UIColor *color);
 
-// Серый лён — фон панели.
+// Grey linen: the panel background.
 UIColor *S4ECCLinenColor(void);
 
-// Желобок между секциями: тёмная линия и светлая под ней. Высота 2 пт.
+// A groove between sections: a dark line with a light one under it. 2 pt tall.
 UIView *S4ECCGroove(CGRect frame);
 
-// Дорожки ползунка: светлая заливка до бегунка и тёмный жёлоб после него.
+// Slider tracks: a light fill up to the thumb and a dark trough after it.
 UIImage *S4ECCTrackImage(BOOL filled);
 
 typedef enum {
-    S4ECCButtonStyleSquare, // скруглённый квадрат в серой оправе: переключатели и программы
-    S4ECCButtonStylePlain,  // только белый тиснёный знак: кнопки музыки
+    S4ECCButtonStyleSquare, // rounded square in a grey bezel: toggles and apps
+    S4ECCButtonStylePlain,  // just a white embossed glyph: music buttons
 } S4ECCButtonStyle;
 
 @interface S4ECCButton : UIControl

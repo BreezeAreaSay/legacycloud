@@ -1,5 +1,5 @@
-// Пункт управления: знаки и материалы в стиле iOS 6.
-// Всё нарисовано кодом (знаки — на сетке 24×24), чтобы не тащить в пакет картинки.
+// Control Center: glyphs and materials in iOS 6 style.
+// Everything is drawn in code (glyphs on a 24×24 grid) so the package doesn't have to ship images.
 
 #import "S4ECCDrawing.h"
 
@@ -69,7 +69,7 @@ void S4ECCDrawGlyph(S4ECCGlyph glyph, CGRect rect) {
         break;
     }
     case S4ECCGlyphMoon:
-        // Месяц: круг без смещённого круга
+        // Crescent: a circle minus an offset circle
         CGContextSaveGState(ctx);
         CGContextAddRect(ctx, CGRectMake(0, 0, 24, 24));
         CGContextAddEllipseInRect(ctx, CGRectMake(9.5, 1, 15, 15));
@@ -151,7 +151,7 @@ void S4ECCDrawGlyph(S4ECCGlyph glyph, CGRect rect) {
         S4ECCSun(4, 3.5);
         break;
     case S4ECCGlyphSliders:
-        // Два ползунка — знак Пункта управления в Activator
+        // Two sliders: the Control Center glyph in Activator
         for (int i = 0; i < 2; i++) {
             CGFloat y = 8 + i * 8, knob = i ? 9 : 15;
             S4ECCFill([UIBezierPath bezierPathWithRoundedRect:CGRectMake(3, y - 1, 18, 2) cornerRadius:1]);
@@ -171,10 +171,10 @@ UIImage *S4ECCGlyphImage(S4ECCGlyph glyph, CGFloat size, UIColor *color) {
     return image;
 }
 
-#pragma mark - Материалы
+#pragma mark - Materials
 
-// Лён: шум и «нити» — случайные сдвиги яркости по строкам и столбцам. Генератор с постоянным
-// зерном, чтобы ткань всегда была одинаковой. Плитка 64×64 пт повторяется без швов.
+// Linen: noise plus "threads", i.e. random brightness shifts per row and column. The generator has a fixed
+// seed so the fabric always comes out the same. The 64×64 pt tile repeats seamlessly.
 UIColor *S4ECCLinenColor(void) {
     static UIColor *color;
     static dispatch_once_t once;
@@ -208,7 +208,7 @@ UIColor *S4ECCLinenColor(void) {
     return color;
 }
 
-// Мелкая сетка точек в поле кнопки, как у Auxo
+// A fine dot mesh in the button field, as in Auxo
 static UIColor *S4ECCMeshColor(void) {
     static UIColor *color;
     static dispatch_once_t once;
@@ -252,7 +252,7 @@ UIImage *S4ECCTrackImage(BOOL filled) {
     CGRect track = CGRectMake(0.5, 0.5, 10, 8);
     UIBezierPath *capsule = [UIBezierPath bezierPathWithRoundedRect:track cornerRadius:4];
     if (!filled) {
-        // Жёлоб утоплен в лён: светлая кромка снизу
+        // The trough is sunk into the linen: a light edge underneath
         [[UIColor colorWithWhite:1 alpha:0.12] setFill];
         [[UIBezierPath bezierPathWithRoundedRect:CGRectOffset(track, 0, 1) cornerRadius:4] fill];
     }
@@ -270,7 +270,7 @@ UIImage *S4ECCTrackImage(BOOL filled) {
     return [image resizableImageWithCapInsets:UIEdgeInsetsMake(0, 5, 0, 5)];
 }
 
-// Тень под кнопкой: заливаем форму с тенью, поверх потом рисуется сама кнопка
+// Shadow under the button: fill the shape with a shadow, the button itself is drawn on top afterwards
 static void S4ECCDropShadow(CGContextRef ctx, UIBezierPath *shape) {
     CGContextSaveGState(ctx);
     CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1), 2, [UIColor colorWithWhite:0 alpha:0.75].CGColor);
@@ -279,7 +279,7 @@ static void S4ECCDropShadow(CGContextRef ctx, UIBezierPath *shape) {
     CGContextRestoreGState(ctx);
 }
 
-// Белый знак с тиснением: тёмная тень сверху, как надписи на чёрном стекле iOS 6
+// An embossed white glyph: a dark shadow on top, like lettering on iOS 6 black glass
 static void S4ECCDrawEmbossedGlyph(CGContextRef ctx, S4ECCGlyph glyph, CGRect rect, UIColor *color, UIColor *shadow) {
     CGContextSaveGState(ctx);
     CGContextSetShadowWithColor(ctx, CGSizeMake(0, -1), 0, shadow.CGColor);
@@ -290,7 +290,7 @@ static void S4ECCDrawEmbossedGlyph(CGContextRef ctx, S4ECCGlyph glyph, CGRect re
     CGContextRestoreGState(ctx);
 }
 
-#pragma mark - Кнопка
+#pragma mark - Button
 
 @implementation S4ECCButton
 
@@ -330,7 +330,7 @@ static void S4ECCDrawEmbossedGlyph(CGContextRef ctx, S4ECCGlyph glyph, CGRect re
     [self setNeedsDisplay];
 }
 
-// Скруглённый квадрат: серая оправа, внутри тёмное текстурное поле или синий глянец
+// Rounded square: a grey bezel with a dark textured field or blue gloss inside
 - (void)drawSquare:(CGContextRef)ctx {
     CGRect outer = CGRectInset(self.bounds, 1.5, 1.5);
     outer.size.height -= 1;
@@ -357,7 +357,7 @@ static void S4ECCDrawEmbossedGlyph(CGContextRef ctx, S4ECCGlyph glyph, CGRect re
         [S4ECCMeshColor() setFill];
         CGContextFillRect(ctx, inner);
     }
-    // Глянец сверху и тень по верхнему краю: поле утоплено в оправу
+    // Gloss on top and a shadow along the top edge: the field is sunk into the bezel
     const CGFloat gloss[] = {1, 1, 1, self.on ? 0.30 : 0.10, 1, 1, 1, 0.02};
     S4ECCGradient(ctx, CGRectMake(inner.origin.x, inner.origin.y, inner.size.width, inner.size.height / 2), gloss);
     const CGFloat inset[] = {0, 0, 0, 0.5, 0, 0, 0, 0};
@@ -377,7 +377,7 @@ static void S4ECCDrawEmbossedGlyph(CGContextRef ctx, S4ECCGlyph glyph, CGRect re
     S4ECCDrawEmbossedGlyph(ctx, self.glyph, glyphRect, [UIColor colorWithWhite:1 alpha:self.on ? 1 : 0.88], shadow);
 }
 
-// Только знак, как кнопки музыки у Auxo и в панели многозадачности iOS 6
+// Glyph only, like the music buttons in Auxo and in the iOS 6 multitasking bar
 - (void)drawPlain:(CGContextRef)ctx {
     CGRect bounds = self.bounds;
     CGFloat size = MIN(bounds.size.width, bounds.size.height) * 0.7;

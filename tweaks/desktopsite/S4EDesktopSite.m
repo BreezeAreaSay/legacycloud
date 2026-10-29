@@ -1,12 +1,12 @@
-// «Полная версия сайта» (iOS 9) в родном меню «Поделиться» Safari.
-// Включает настольный User-Agent для текущей вкладки и перезагружает страницу; повторное нажатие
-// возвращает мобильную версию.
+// "Request Desktop Site" (iOS 9) in Safari's native share sheet.
+// Turns on a desktop User-Agent for the current tab and reloads the page; tapping it again
+// returns to the mobile version.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
 #include <dlfcn.h>
 
-// Safari 6 для OS X на том же движке WebKit, что и в iOS 6: сайты не получат обещаний, которые движок не выполнит.
+// Safari 6 for OS X runs the same WebKit engine as iOS 6: sites will not be promised anything the engine cannot deliver.
 #define S4E_DESKTOP_UA @"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/536.29.13 (KHTML, like Gecko) Version/6.0.4 Safari/536.29.13"
 
 static void S4ECollectWebViews(UIView *view, Class documentClass, NSMutableArray *found) {
@@ -20,7 +20,7 @@ static void S4ECollectWebViews(UIView *view, Class documentClass, NSMutableArray
         S4ECollectWebViews(subview, documentClass, found);
 }
 
-// WebView текущей вкладки — самый крупный видимый документ в окнах Safari.
+// The current tab's WebView is the largest visible document in Safari's windows.
 static WebView *S4EActiveWebView(void) {
     Class documentClass = NSClassFromString(@"UIWebBrowserView") ?: NSClassFromString(@"UIWebDocumentView");
     if (!documentClass)
@@ -42,7 +42,7 @@ static WebView *S4EActiveWebView(void) {
     return [webView respondsToSelector:@selector(setCustomUserAgent:)] ? webView : nil;
 }
 
-// m.example.com → example.com: многие сайты сами переадресуют на мобильный поддомен.
+// m.example.com → example.com: many sites redirect to their mobile subdomain on their own.
 static NSURL *S4EDesktopURL(NSURL *url) {
     NSString *host = url.host;
     for (NSString *prefix in @[@"m.", @"mobile.", @"touch."]) {
@@ -57,9 +57,9 @@ static NSURL *S4EDesktopURL(NSURL *url) {
     return url;
 }
 
-// WebKit в iOS живёт в отдельном веб-потоке: из главного потока к WebView и WebFrame можно
-// обращаться только под WebThreadLock() — так делают UIKit и Safari. Блокировка снимается сама
-// в конце текущего витка главного цикла.
+// On iOS, WebKit lives on a separate web thread: from the main thread, WebView and WebFrame may
+// only be accessed under WebThreadLock(), as UIKit and Safari do. The lock is released automatically
+// at the end of the current main run loop iteration.
 static void S4EWebThreadLock(void) {
     static void (*lock)(void);
     static dispatch_once_t once;
@@ -89,13 +89,13 @@ static void S4EToggleDesktop(WebView *webView) {
         [frame reload];
 }
 
-#pragma mark - Пункт меню
+#pragma mark - Menu item
 
 @interface S4EDesktopSiteActivity : UIActivity
 @end
 
 @implementation S4EDesktopSiteActivity {
-    WebView *_webView; // сильная ссылка: меню живёт недолго, а weak на классы WebKit в iOS 6 не гарантирован
+    WebView *_webView; // strong reference: the menu is short-lived, and weak references to WebKit classes are not guaranteed on iOS 6
 }
 
 - (instancetype)initWithWebView:(WebView *)webView {
@@ -109,10 +109,11 @@ static void S4EToggleDesktop(WebView *webView) {
 }
 
 - (NSString *)activityTitle {
-    return S4EIsDesktop(_webView) ? @"Мобильная версия" : @"Полная версия";
+    return S4EIsDesktop(_webView) ? S4E_L(@"Request Mobile Site", @"Мобильная версия")
+                                   : S4E_L(@"Request Desktop Site", @"Полная версия");
 }
 
-// Шаблон-маска 43×43: iOS 6 сама рисует из неё глянцевую серую кнопку меню.
+// A 43×43 template mask: iOS 6 itself draws the glossy gray menu button from it.
 - (UIImage *)activityImage {
     const CGFloat size = 43;
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), NO, 0);
@@ -136,7 +137,7 @@ static void S4EToggleDesktop(WebView *webView) {
 - (void)performActivity {
     WebView *webView = _webView;
     [self activityDidFinish:YES];
-    // Меню «Поделиться» ещё закрывается — страницу трогаем на следующем витке, когда Safari вернулся к вкладке.
+    // The share sheet is still closing: touch the page on the next run loop iteration, once Safari is back on the tab.
     dispatch_async(dispatch_get_main_queue(), ^{
         if (webView)
             S4EToggleDesktop(webView);

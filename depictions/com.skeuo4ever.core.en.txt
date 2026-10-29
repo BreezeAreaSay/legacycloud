@@ -1,0 +1,8 @@
+The Skeuo4Ever core. Adds a "Skeuo4Ever" item to Settings with switches for every installed feature, and ties the features together.
+
+The core also puts items where modern iOS keeps them: Night Shift in Brightness & Wallpaper, Low Power Mode in General → Usage, Bold Text in Accessibility. This can be turned off.
+
+## Language
+English or Russian: by the system language, or chosen in Settings → Skeuo4Ever → Language.
+
+Installed automatically with any Skeuo4Ever feature.

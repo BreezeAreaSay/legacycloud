@@ -1,0 +1,13 @@
+Low Power Mode from iOS 9 and the Battery Health screen from iOS 11.3.
+
+## Low Power Mode
+- the battery in the status bar turns yellow;
+- screen brightness drops by 20 %, and Auto-Lock kicks in after a minute;
+- the "20 % of battery remaining" alert gets a "Low Power Mode" button;
+- while charging, the mode turns itself off once the battery passes 80 %.
+
+## Battery Health
+Maximum capacity relative to a new battery, charge cycle count, current and design capacity, temperature.
+
+## Settings
+General → Usage, under Battery Percentage — like the Battery section of modern iOS. The same items are in Settings → Skeuo4Ever.

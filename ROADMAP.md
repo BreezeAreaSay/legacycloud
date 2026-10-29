@@ -1,41 +1,42 @@
-# План iOS6Revive
+# Skeuo4Ever roadmap
 
-Правило отбора: функция переносится, только если её можно нарисовать материалами iOS 6 — стеклом,
-льном, кожей, бумагой, металлом, глянцевыми кнопками и тиснёным текстом. Всё пишется с нуля, без чужих твиков.
+The rule: a feature comes over only if it can be built from iOS 6 materials — glass, linen, leather, paper,
+metal, glossy buttons and embossed text. As if iOS 7 had never gone flat. Everything is written from scratch,
+no other people's tweaks.
 
-## Этап 1 — быстрые победы ✅ (0.1)
-Смахивание назад, энергосбережение, состояние аккумулятора, Night Shift, лента «Новое» на всех новых программах,
-жирный шрифт, полная версия сайта.
+## Stage 1 — quick wins ✅
+Swipe Back, Low Power Mode, Battery Health, Night Shift, the "New" sash on every new app, Bold Text,
+Request Desktop Site.
 
-✅ 0.1.1: пункты в родных разделах Настроек, как в новых iOS: Night Shift → «Яркость и обои»,
-«Жирный шрифт» → «Универсальный доступ», аккумулятор → «Основные → Статистика».
+✅ Items also appear in their native Settings sections, as in modern iOS: Night Shift → Brightness & Wallpaper,
+Bold Text → Accessibility, battery → General → Usage.
 
-**Доделать:** «Закат — рассвет» для Night Shift (нужна геопозиция).
+**To do:** Sunset to Sunrise for Night Shift (needs location).
 
-## Этап 2 — средние
-- ✅ **Пункт управления свайпом снизу** (iOS 7) в стиле iOS 6 — 0.3: раскладка iOS 7, материалы как у Auxo —
-  серый лён с желобками, квадратные кнопки в серой оправе, синий глянец у включённых, кнопки музыки — белые
-  тиснёные знаки, родные ползунки с тёмными дорожками. В ландшафте — раскладка iOS 7 для iPad. Жест даёт
-  Activator (своё окно у края поверх программ касаний не получает), по умолчанию — «Свайп вверх от низа».
-- ✅ **Курсор свайпом по клавиатуре** (iOS 12) — 0.2.0: по пробелу — курсор, от Shift — выделение.
-- ✅ **Превью скриншота в углу и разметка** (iOS 11) — 0.2.0: снимок уменьшается в угол фотографией в белой
-  рамке; разметка с чёрными полупрозрачными панелями «Фото», пером, маркером, ластиком и шестью цветами.
-  Пока превью на экране, снимка ещё нет в «Фото», и его можно удалить, как в iOS 11.
-- **Запись экрана** (iOS 11) — своя реализация.
-- Несколько действий по свайпу ячейки (iOS 8): глянцевые «Ещё» и «Флажок» рядом с красной «Удалить».
-- Поиск в Настройках (iOS 9).
-- Быстрые действия на иконках (iOS 9/13): свайп вверх по иконке → чёрное стеклянное меню со стрелкой.
-- Таймер в Камере (iOS 8).
-- Время сообщений по свайпу влево (iOS 7).
-- Индикатор камеры и микрофона (iOS 14).
-- Страницы в папках (iOS 7).
-- Медкарта на экране экстренного вызова (iOS 8).
-- Быстрый ответ на SMS из баннера (iOS 8).
+## Stage 2 — medium
+- ✅ **Control Center** (iOS 7): the iOS 7 layout in Auxo-style materials — grey linen with grooves, square
+  buttons in grey frames, glossy blue when on, music controls as white embossed glyphs, native sliders with
+  dark tracks. In landscape, the iOS 7 iPad layout. The gesture comes from Activator (a window of our own
+  at the edge gets no touches over apps); by default "Slide in from the bottom" — left, middle and right.
+- ✅ **Space Bar Cursor** (iOS 12): slide on the space bar to move the cursor, from Shift to select.
+- ✅ **Screenshot Preview with markup** (iOS 11): the screenshot shrinks into the corner as a photo in a white
+  frame; markup with the black translucent bars of Photos, pen, marker, eraser and six colors. While the
+  thumbnail is on screen the screenshot is not in Photos yet, so it can be deleted, as in iOS 11.
+- **Screen recording** (iOS 11) — our own implementation.
+- Several swipe actions on table cells (iOS 8): glossy More and Flag next to the red Delete.
+- Search in Settings (iOS 9).
+- Quick actions on icons (iOS 9/13): swipe up on an icon → a black glass menu with an arrow.
+- Camera timer (iOS 8).
+- Message timestamps on swipe left (iOS 7).
+- Camera and microphone indicator (iOS 14).
+- Pages in folders (iOS 7).
+- Medical ID on the emergency call screen (iOS 8).
+- Quick reply to an SMS from a banner (iOS 8).
 
-## Этап 3 — флагманы
-- **Тёмная тема** (iOS 13) из тёмных материалов самой iOS 6: тёмный лён, чёрное стекло панелей,
-  клавиатура `UIKeyboardAppearanceAlert`, тиснение с чёрной тенью сверху.
-- Входящий звонок баннером (iOS 14).
-- QR-сканер в Камере (iOS 11).
-- «Недавно удалённые» в Фото (iOS 8).
-- Подсказки QuickType над клавиатурой (iOS 8).
+## Stage 3 — flagships
+- **Dark mode** (iOS 13) from iOS 6's own dark materials: dark linen, black glass bars, the
+  `UIKeyboardAppearanceAlert` keyboard, embossing with a black shadow on top.
+- Incoming call as a banner (iOS 14).
+- QR scanner in Camera (iOS 11).
+- Recently Deleted in Photos (iOS 8).
+- QuickType suggestions above the keyboard (iOS 8).

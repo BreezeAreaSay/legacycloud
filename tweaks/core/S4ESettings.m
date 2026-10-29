@@ -1,6 +1,6 @@
-// Экран «Skeuo4Ever» в Настройках: пункт в корне, переключатели всех функций, Night Shift
-// и состояние аккумулятора.
-// Собран из родных ячеек Preferences.framework iOS 6, поэтому выглядит как системный.
+// The Skeuo4Ever screen in Settings: an entry at the root, switches for every feature, Night Shift
+// and Battery Health.
+// Built from native iOS 6 Preferences.framework cells, so it looks like part of the system.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
@@ -9,7 +9,7 @@
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 
-#pragma mark - Хранилище спецификаторов
+#pragma mark - Specifier storage
 
 static void **S4ESpecifiersSlot(PSListController *controller) {
     Ivar ivar = class_getInstanceVariable(objc_getClass("PSListController"), "_specifiers");
@@ -23,7 +23,7 @@ static NSArray *S4ESpecifiers(PSListController *controller) {
     return slot ? (__bridge NSArray *)*slot : nil;
 }
 
-// Пишем ivar напрямую, как это делают бандлы настроек: Preferences.framework сам освободит его в dealloc.
+// Write the ivar directly, as settings bundles do: Preferences.framework releases it itself in dealloc.
 static void S4ESetSpecifiersStorage(PSListController *controller, NSArray *specifiers) {
     void **slot = S4ESpecifiersSlot(controller);
     if (!slot) {
@@ -48,7 +48,7 @@ static PSSpecifier *S4EGroup(NSString *title, NSString *footer) {
     return group;
 }
 
-#pragma mark - Подтверждение (UIAlertView держит делегата слабо)
+#pragma mark - Confirmation (UIAlertView holds its delegate weakly)
 
 @interface S4EAlertDelegate : NSObject <UIAlertViewDelegate>
 @property(nonatomic, copy) void (^handler)(BOOL confirmed);
@@ -64,7 +64,7 @@ static NSMutableSet *gActiveAlerts;
         gActiveAlerts = [NSMutableSet set];
     [gActiveAlerts addObject:delegate];
     UIAlertView *alert = [[UIAlertView alloc] initWithTitle:title message:message delegate:delegate
-                                          cancelButtonTitle:@"Отменить" otherButtonTitles:confirm, nil];
+                                          cancelButtonTitle:S4E_L(@"Cancel", @"Отменить") otherButtonTitles:confirm, nil];
     [alert show];
 }
 
@@ -75,10 +75,10 @@ static NSMutableSet *gActiveAlerts;
 }
 @end
 
-#pragma mark - Значения переключателей
+#pragma mark - Switch values
 
-// «Жирный шрифт» требует перезапуска SpringBoard, поэтому спрашиваем подтверждение — как iOS 7.
-// irOwner — список, в котором стоит переключатель: при отмене возвращаем его на место.
+// Bold Text needs a SpringBoard restart, so we ask for confirmation, like iOS 7.
+// s4eOwner is the list that holds the switch: on cancel we flip the switch back.
 static void S4EApplySetting(PSSpecifier *spec, id value) {
     NSString *key = [spec propertyForKey:@"s4eKey"];
     if (![key isEqualToString:kS4EBoldText]) {
@@ -86,11 +86,12 @@ static void S4EApplySetting(PSSpecifier *spec, id value) {
         return;
     }
     PSListController *owner = [[spec propertyForKey:@"s4eOwner"] nonretainedObjectValue];
-    // Сильная ссылка намеренно: блок живёт только до закрытия алерта, а __weak-переменная
-    // на armv7 требует таблиц исключений SjLj, которых нет в заглушках SDK.
+    // A strong reference on purpose: the block lives only until the alert closes, and a __weak variable
+    // on armv7 needs SjLj exception tables, which the SDK stubs don't have.
     [S4EAlertDelegate showTitle:nil
-                       message:@"Чтобы применить этот параметр, SpringBoard и все программы будут перезапущены."
-                       confirm:@"Продолжить"
+                       message:S4E_L(@"Applying this setting will restart SpringBoard and all apps.",
+                                     @"Чтобы применить этот параметр, SpringBoard и все программы будут перезапущены.")
+                       confirm:S4E_L(@"Continue", @"Продолжить")
                        handler:^(BOOL confirmed) {
                            if (!confirmed) {
                                [owner reloadSpecifier:spec];
@@ -119,7 +120,7 @@ static id S4EValueFor(PSSpecifier *spec) {
     return value ?: [spec propertyForKey:@"s4eDefault"];
 }
 
-#pragma mark - Базовый список
+#pragma mark - Base list
 
 @interface S4EListController : PSListController
 - (NSMutableArray *)s4e_buildSpecifiers;
@@ -190,7 +191,7 @@ static id S4EValueFor(PSSpecifier *spec) {
 
 @end
 
-#pragma mark - Состояние аккумулятора (iOS 11.3)
+#pragma mark - Battery Health (iOS 11.3)
 
 typedef mach_port_t s4e_io_object_t;
 typedef CFMutableDictionaryRef (*S4EIOServiceMatching_t)(const char *);
@@ -220,7 +221,7 @@ static NSDictionary *S4EBatteryInfo(void) {
     return CFBridgingRelease(properties);
 }
 
-// Паспортная ёмкость — на случай, если контроллер питания её не отдаёт.
+// Design capacity, in case the power controller doesn't report it.
 static double S4EDesignCapacityForModel(void) {
     char machine[32] = {0};
     size_t size = sizeof(machine) - 1;
@@ -247,31 +248,40 @@ static double S4EDesignCapacityForModel(void) {
         design = S4EDesignCapacityForModel();
 
     if (maxCapacity <= 0 || design <= 0) {
-        [specs addObject:S4EGroup(nil, @"Не удалось получить данные об аккумуляторе.")];
+        [specs addObject:S4EGroup(nil, S4E_L(@"Unable to get battery information.", @"Не удалось получить данные об аккумуляторе."))];
         return specs;
     }
 
-    // На старых iOS MaxCapacity отдаётся в мА·ч; если пришли проценты — берём как есть.
+    // On older iOS MaxCapacity comes in mAh; if it comes as a percentage, take it as is.
     double health = maxCapacity <= 100 ? maxCapacity : MIN(100.0, maxCapacity / design * 100.0);
 
-    [specs addObject:S4EGroup(nil, @"Аккумуляторы iPhone, как и все аккумуляторы, — расходный материал: "
-                                   @"по мере химического старения их ёмкость снижается.")];
+    [specs addObject:S4EGroup(nil, S4E_L(@"iPhone batteries, like all rechargeable batteries, are consumable components "
+                                         @"that become less effective as they chemically age.",
+                                         @"Аккумуляторы iPhone, как и все аккумуляторы, — расходный материал: "
+                                         @"по мере химического старения их ёмкость снижается."))];
     NSString *capacityFooter = health >= 80
-        ? @"Это ёмкость аккумулятора относительно нового. Чем она ниже, тем меньше iPhone работает от одной зарядки."
-        : @"Состояние аккумулятора значительно ухудшилось. Замените аккумулятор, чтобы вернуть прежнее время работы.";
+        ? S4E_L(@"This is a measure of battery capacity relative to when it was new. "
+                @"Lower capacity may result in fewer hours of usage between charges.",
+                @"Это ёмкость аккумулятора относительно нового. Чем она ниже, тем меньше iPhone работает от одной зарядки.")
+        : S4E_L(@"Your battery's health is significantly degraded. Replace the battery to get back its original battery life.",
+                @"Состояние аккумулятора значительно ухудшилось. Замените аккумулятор, чтобы вернуть прежнее время работы.");
     [specs addObject:S4EGroup(nil, capacityFooter)];
-    [specs addObject:[self s4e_info:@"Максимальная ёмкость" value:[NSString stringWithFormat:@"%.0f %%", health]]];
+    [specs addObject:[self s4e_info:S4E_L(@"Maximum Capacity", @"Максимальная ёмкость")
+                              value:[NSString stringWithFormat:@"%.0f %%", health]]];
 
-    [specs addObject:S4EGroup(@"Подробнее", nil)];
+    [specs addObject:S4EGroup(S4E_L(@"Details", @"Подробнее"), nil)];
     double cycles = S4EDouble(info, @"CycleCount", -1);
     if (cycles >= 0)
-        [specs addObject:[self s4e_info:@"Циклы перезарядки" value:[NSString stringWithFormat:@"%.0f", cycles]]];
+        [specs addObject:[self s4e_info:S4E_L(@"Cycle Count", @"Циклы перезарядки") value:[NSString stringWithFormat:@"%.0f", cycles]]];
     if (maxCapacity > 100)
-        [specs addObject:[self s4e_info:@"Ёмкость сейчас" value:[NSString stringWithFormat:@"%.0f мА·ч", maxCapacity]]];
-    [specs addObject:[self s4e_info:@"Паспортная ёмкость" value:[NSString stringWithFormat:@"%.0f мА·ч", design]]];
+        [specs addObject:[self s4e_info:S4E_L(@"Current Capacity", @"Ёмкость сейчас")
+                                  value:[NSString stringWithFormat:S4E_L(@"%.0f mAh", @"%.0f мА·ч"), maxCapacity]]];
+    [specs addObject:[self s4e_info:S4E_L(@"Design Capacity", @"Паспортная ёмкость")
+                              value:[NSString stringWithFormat:S4E_L(@"%.0f mAh", @"%.0f мА·ч"), design]]];
     double temperature = S4EDouble(info, @"Temperature", 0);
     if (temperature > 0 && temperature < 10000)
-        [specs addObject:[self s4e_info:@"Температура" value:[NSString stringWithFormat:@"%.1f °C", temperature / 100.0]]];
+        [specs addObject:[self s4e_info:S4E_L(@"Temperature", @"Температура")
+                                  value:[NSString stringWithFormat:@"%.1f °C", temperature / 100.0]]];
     return specs;
 }
 
@@ -288,23 +298,27 @@ static double S4EDesignCapacityForModel(void) {
     NSMutableArray *specs = [NSMutableArray array];
     NSDictionary *prefs = S4EPrefsRead() ?: @{};
 
-    NSString *footer = @"Night Shift автоматически смещает цвета дисплея к тёплому краю спектра после наступления темноты. "
-                       @"Это может улучшить качество сна.";
+    NSString *footer = S4E_L(@"Night Shift automatically shifts the colors of your display to the warmer end of the color spectrum "
+                             @"after dark. This may help you get a better night's sleep.",
+                             @"Night Shift автоматически смещает цвета дисплея к тёплому краю спектра после наступления темноты. "
+                             @"Это может улучшить качество сна.");
     if (S4EBool(prefs, @"NightShiftUnsupported", NO))
-        footer = @"На этом устройстве не удалось прочитать гамма-таблицу дисплея, поэтому Night Shift выключен.";
+        footer = S4E_L(@"The display's gamma table could not be read on this device, so Night Shift is turned off.",
+                       @"На этом устройстве не удалось прочитать гамма-таблицу дисплея, поэтому Night Shift выключен.");
     [specs addObject:S4EGroup(nil, footer)];
-    [specs addObject:[self s4e_switch:@"Запланировано" key:kS4ENSScheduled fallback:NO]];
+    [specs addObject:[self s4e_switch:S4E_L(@"Scheduled", @"Запланировано") key:kS4ENSScheduled fallback:NO]];
     if (S4EBool(prefs, kS4ENSScheduled, NO)) {
-        [specs addObject:[self s4e_time:@"С" key:kS4ENSFrom fallback:S4E_NS_DEFAULT_FROM]];
-        [specs addObject:[self s4e_time:@"До" key:kS4ENSTo fallback:S4E_NS_DEFAULT_TO]];
+        [specs addObject:[self s4e_time:S4E_L(@"From", @"С") key:kS4ENSFrom fallback:S4E_NS_DEFAULT_FROM]];
+        [specs addObject:[self s4e_time:S4E_L(@"To", @"До") key:kS4ENSTo fallback:S4E_NS_DEFAULT_TO]];
     }
 
     [specs addObject:S4EGroup(nil, nil)];
-    [specs addObject:[PSSpecifier preferenceSpecifierNamed:@"Вручную включить до завтра" target:self
+    [specs addObject:[PSSpecifier preferenceSpecifierNamed:S4E_L(@"Manually Enable Until Tomorrow", @"Вручную включить до завтра") target:self
                                                        set:@selector(s4e_setManual:specifier:) get:@selector(s4e_manual:)
                                                     detail:nil cell:PSSwitchCell edit:nil]];
 
-    [specs addObject:S4EGroup(@"Цветовая температура", @"Менее тепло — влево, более тепло — вправо.")];
+    [specs addObject:S4EGroup(S4E_L(@"Color Temperature", @"Цветовая температура"),
+                              S4E_L(@"Less Warm to the left, More Warm to the right.", @"Менее тепло — влево, более тепло — вправо."))];
     PSSpecifier *slider = [PSSpecifier preferenceSpecifierNamed:nil target:self set:@selector(s4e_setValue:specifier:)
                                                             get:@selector(s4e_value:) detail:nil cell:PSSliderCell edit:nil];
     [slider setProperty:kS4ENSWarmth forKey:@"s4eKey"];
@@ -328,7 +342,7 @@ static double S4EDesignCapacityForModel(void) {
 - (void)s4e_setValue:(id)value specifier:(PSSpecifier *)spec {
     [super s4e_setValue:value specifier:spec];
     if ([[spec propertyForKey:@"s4eKey"] isEqualToString:kS4ENSScheduled])
-        [self s4e_refresh]; // показать или спрятать строки «С» и «До»
+        [self s4e_refresh]; // show or hide the From and To rows
 }
 
 - (id)s4e_manual:(PSSpecifier *)spec {
@@ -341,12 +355,12 @@ static double S4EDesignCapacityForModel(void) {
 
 @end
 
-#pragma mark - Пункты в родных разделах Настроек (как в новых iOS)
+#pragma mark - Items in native Settings sections (as in newer iOS)
 //
-// Night Shift — в «Яркость и обои», энергосбережение и состояние аккумулятора — в «Основные → Статистика»,
-// жирный шрифт — в «Универсальный доступ». Разделы узнаём по их содержимому: внутренние имена
-// разделов iOS 6 на устройстве не проверены. Если раздел не узнан, пункт остаётся только
-// на экране Skeuo4Ever, а экран «Разделы Настроек» показывает, что внутри у каждого раздела.
+// Night Shift goes to Brightness & Wallpaper, Low Power Mode and Battery Health to General → Usage,
+// Bold Text to Accessibility. Sections are recognized by their contents: the internal names of
+// iOS 6 sections haven't been verified on a device. If a section isn't recognized, the item stays only
+// on the Skeuo4Ever screen, and the Settings Sections screen shows what is inside each section.
 
 #define kS4ENativeSettings @"NativeSettings"
 #define S4E_SECTIONS_DIR @"/Library/Skeuo4Ever/Sections"
@@ -362,7 +376,7 @@ static NSString *S4ESectionText(id value) {
 
 typedef enum { S4EPaneNone, S4EPaneUsage, S4EPaneBrightness, S4EPaneAccessibility } S4EPane;
 
-// Цель для встроенных переключателей: чужой список не знает наших s4e_value:/s4e_setValue:specifier:.
+// Target for the injected switches: a foreign list doesn't know our s4e_value:/s4e_setValue:specifier:.
 @interface S4ESettingsBridge : NSObject
 @end
 
@@ -403,7 +417,7 @@ static S4EPane S4EPaneOf(PSListController *controller, NSArray *specs) {
     return S4EPaneNone;
 }
 
-// Конец первой группы раздела: индекс второго заголовка группы.
+// End of a section's first group: the index of the second group header.
 static NSUInteger S4EEndOfFirstGroup(NSArray *specs) {
     NSUInteger start = (specs.count && [specs[0] cellType] == PSGroupCell) ? 1 : 0;
     for (NSUInteger i = start; i < specs.count; i++)
@@ -412,8 +426,8 @@ static NSUInteger S4EEndOfFirstGroup(NSArray *specs) {
     return specs.count;
 }
 
-// Новый массив целиком через setSpecifiers: — таблица перезагружается полностью. Построчная вставка
-// до первой загрузки таблицы может уронить Настройки на проверке числа строк.
+// A whole new array through setSpecifiers:, so the table reloads completely. Inserting row by row
+// before the table's first load can crash Settings on the row count check.
 static void S4EInsertSpecifiers(PSListController *controller, NSArray *added, NSUInteger index) {
     NSMutableArray *specs = [S4ESpecifiers(controller) mutableCopy];
     index = MIN(index, specs.count);
@@ -428,18 +442,18 @@ static void S4EInjectNative(PSListController *controller) {
     S4ESettingsBridge *bridge = [S4ESettingsBridge shared];
     switch (S4EPaneOf(controller, specs)) {
     case S4EPaneUsage: {
-        // Сразу под «Заряд в процентах», как раздел «Аккумулятор» в iOS 9
+        // Right under Battery Percentage, like the Battery section in iOS 9
         if (!S4EFeatureInstalled(@"S4EBattery"))
             return;
-        PSSpecifier *lowPower = S4EMakeSwitch(bridge, controller, @"Энергосбережение", kS4ELowPower, NO);
+        PSSpecifier *lowPower = S4EMakeSwitch(bridge, controller, S4E_L(@"Low Power Mode", @"Энергосбережение"), kS4ELowPower, NO);
         lowPower.identifier = S4E_NATIVE_ID;
-        PSSpecifier *health = S4EMakeLink(bridge, @"Состояние аккумулятора", [S4EBatteryHealthController class]);
+        PSSpecifier *health = S4EMakeLink(bridge, S4E_L(@"Battery Health", @"Состояние аккумулятора"), [S4EBatteryHealthController class]);
         NSUInteger anchor = [specs indexOfObject:S4ESpecifierWithKey(specs, @"SBShowBatteryPercentage")];
         S4EInsertSpecifiers(controller, @[lowPower, health], anchor + 1);
         break;
     }
     case S4EPaneBrightness: {
-        // Отдельной группой под яркостью, как в iOS 10
+        // As a separate group under brightness, like in iOS 10
         if (!S4EFeatureInstalled(@"S4ENightShift"))
             return;
         PSSpecifier *group = S4EGroup(nil, nil);
@@ -449,10 +463,10 @@ static void S4EInjectNative(PSListController *controller) {
         break;
     }
     case S4EPaneAccessibility: {
-        // В конец первой группы — «Зрение»
+        // At the end of the first group, Vision
         if (!S4EFeatureInstalled(@"S4EBoldText"))
             return;
-        PSSpecifier *bold = S4EMakeSwitch(bridge, controller, @"Жирный шрифт", kS4EBoldText, NO);
+        PSSpecifier *bold = S4EMakeSwitch(bridge, controller, S4E_L(@"Bold Text", @"Жирный шрифт"), kS4EBoldText, NO);
         bold.identifier = S4E_NATIVE_ID;
         S4EInsertSpecifiers(controller, @[bold], S4EEndOfFirstGroup(specs));
         break;
@@ -462,7 +476,7 @@ static void S4EInjectNative(PSListController *controller) {
     }
 }
 
-// Журнал последних открытых разделов: класс, заголовок и строки (имя, ID, ключ настройки).
+// Log of the recently opened sections: class, title and rows (name, ID, settings key).
 static void S4ELogPane(PSListController *controller) {
     NSString *name = NSStringFromClass([controller class]);
     if ([name hasPrefix:@"IR"])
@@ -506,9 +520,12 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
     NSMutableArray *specs = [NSMutableArray array];
     NSArray *log = [NSArray arrayWithContentsOfFile:S4EDataPath(S4E_PANE_LOG)];
     [specs addObject:S4EGroup(nil, log.count
-        ? @"Последние открытые разделы Настроек и их внутреннее устройство. Если пункт Skeuo4Ever не появился "
-          @"в нужном разделе, открой этот раздел, вернись сюда и пришли скриншот."
-        : @"Пока пусто: открой нужные разделы Настроек и вернись сюда.")];
+        ? S4E_L(@"Recently opened Settings sections and how they are built inside. If a Skeuo4Ever item didn't show up "
+                @"in the right section, open that section, come back here and send a screenshot.",
+                @"Последние открытые разделы Настроек и их внутреннее устройство. Если пункт Skeuo4Ever не появился "
+                @"в нужном разделе, открой этот раздел, вернись сюда и пришли скриншот.")
+        : S4E_L(@"Nothing here yet: open the Settings sections you need and come back here.",
+                @"Пока пусто: открой нужные разделы Настроек и вернись сюда."))];
     for (NSDictionary *entry in log) {
         [specs addObject:S4EGroup([NSString stringWithFormat:@"%@ · %@", entry[@"title"], entry[@"class"]], nil)];
         for (NSDictionary *row in entry[@"rows"]) {
@@ -522,7 +539,7 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
 
 @end
 
-#pragma mark - Главный экран
+#pragma mark - Main screen
 
 @interface S4ERootListController : S4EListController
 @end
@@ -538,23 +555,29 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
     NSMutableArray *specs = [NSMutableArray array];
 
     if (S4EFeatureInstalled(@"S4ESwipeBack")) {
-        [specs addObject:S4EGroup(nil, @"Проведите пальцем от левого края экрана, чтобы вернуться на предыдущий экран.")];
-        [specs addObject:[self s4e_switch:@"Смахивание назад" key:kS4ESwipeBack fallback:YES]];
+        [specs addObject:S4EGroup(nil, S4E_L(@"Swipe from the left edge of the screen to go back to the previous screen.",
+                                             @"Проведите пальцем от левого края экрана, чтобы вернуться на предыдущий экран."))];
+        [specs addObject:[self s4e_switch:S4E_L(@"Swipe Back", @"Смахивание назад") key:kS4ESwipeBack fallback:YES]];
     }
 
     if (S4EFeatureInstalled(@"S4EControlCenter")) {
-        [specs addObject:S4EGroup(nil, @"Проведите вверх от нижнего края экрана, чтобы открыть Пункт управления. "
-                                      @"Жест можно сменить в Activator: действие «Пункт управления» в разделе Skeuo4Ever.")];
-        [specs addObject:[self s4e_switch:@"Пункт управления" key:@"ControlCenter" fallback:YES]];
+        [specs addObject:S4EGroup(nil, S4E_L(@"Swipe up from the bottom edge of the screen to open Control Center. "
+                                             @"You can change the gesture in Activator: the “Control Center” action in the Skeuo4Ever section.",
+                                             @"Проведите вверх от нижнего края экрана, чтобы открыть Пункт управления. "
+                                             @"Жест можно сменить в Activator: действие «Пункт управления» в разделе Skeuo4Ever."))];
+        [specs addObject:[self s4e_switch:S4E_L(@"Control Center", @"Пункт управления") key:@"ControlCenter" fallback:YES]];
     }
 
     if (S4EFeatureInstalled(@"S4EBattery")) {
-        [specs addObject:S4EGroup(nil, @"Режим энергосбережения временно снижает расход энергии, пока iPhone не будет заряжен: "
-                                      @"экран становится темнее, а автоблокировка срабатывает через минуту. "
-                                      @"При зарядке до 80 % режим выключится сам.")];
-        [specs addObject:[self s4e_switch:@"Энергосбережение" key:kS4ELowPower fallback:NO]];
+        [specs addObject:S4EGroup(nil, S4E_L(@"Low Power Mode temporarily reduces power consumption until iPhone is charged: "
+                                             @"the screen gets dimmer and Auto-Lock is set to one minute. "
+                                             @"It turns off automatically when the battery charges to 80%.",
+                                             @"Режим энергосбережения временно снижает расход энергии, пока iPhone не будет заряжен: "
+                                             @"экран становится темнее, а автоблокировка срабатывает через минуту. "
+                                             @"При зарядке до 80 % режим выключится сам."))];
+        [specs addObject:[self s4e_switch:S4E_L(@"Low Power Mode", @"Энергосбережение") key:kS4ELowPower fallback:NO]];
         [specs addObject:S4EGroup(nil, nil)];
-        [specs addObject:[self s4e_link:@"Состояние аккумулятора" detail:[S4EBatteryHealthController class]]];
+        [specs addObject:[self s4e_link:S4E_L(@"Battery Health", @"Состояние аккумулятора") detail:[S4EBatteryHealthController class]]];
     }
 
     if (S4EFeatureInstalled(@"S4ENightShift")) {
@@ -563,24 +586,29 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
     }
 
     if (S4EFeatureInstalled(@"S4EBoldText")) {
-        [specs addObject:S4EGroup(nil, @"После изменения SpringBoard и все программы перезапустятся.")];
-        PSSpecifier *bold = [self s4e_switch:@"Жирный шрифт" key:kS4EBoldText fallback:NO];
+        [specs addObject:S4EGroup(nil, S4E_L(@"Changing this setting restarts SpringBoard and all apps.",
+                                             @"После изменения SpringBoard и все программы перезапустятся."))];
+        PSSpecifier *bold = [self s4e_switch:S4E_L(@"Bold Text", @"Жирный шрифт") key:kS4EBoldText fallback:NO];
         bold.identifier = @"BOLD_TEXT";
         [specs addObject:bold];
     }
 
     if (S4EFeatureInstalled(@"S4ENewSash")) {
-        [specs addObject:S4EGroup(nil, @"Лента «Новое» на иконке только что установленной программы — не только из App Store, "
-                                      @"но и из ipa или Cydia. Исчезает после первого запуска.")];
-        [specs addObject:[self s4e_switch:@"Лента «Новое»" key:kS4ENewSash fallback:YES]];
+        [specs addObject:S4EGroup(nil, S4E_L(@"A “New” ribbon on the icon of a newly installed app — not only from the App Store, "
+                                             @"but also from an ipa or Cydia. It disappears after the first launch.",
+                                             @"Лента «Новое» на иконке только что установленной программы — не только из App Store, "
+                                             @"но и из ipa или Cydia. Исчезает после первого запуска."))];
+        [specs addObject:[self s4e_switch:S4E_L(@"“New” Ribbon", @"Лента «Новое»") key:kS4ENewSash fallback:YES]];
     }
 
     if (S4EFeatureInstalled(@"S4EDesktopSite"))
-        [specs addObject:S4EGroup(@"Safari", @"Чтобы открыть полную версию сайта, нажмите в Safari «Поделиться» "
-                                            @"и выберите «Полная версия».")];
+        [specs addObject:S4EGroup(@"Safari", S4E_L(@"To open the desktop version of a website, tap Share in Safari "
+                                                   @"and choose “Request Desktop Site”.",
+                                                   @"Чтобы открыть полную версию сайта, нажмите в Safari «Поделиться» "
+                                                   @"и выберите «Полная версия»."))];
 
-    // Разделы, которые приносят сами пакеты: /Library/Skeuo4Ever/Sections/*.plist
-    // { order, title?, footer?, cells = ({ title, key, default }) } — ядро не нужно обновлять ради новой функции
+    // Sections that packages bring themselves: /Library/Skeuo4Ever/Sections/*.plist
+    // { order, title?, footer?, cells = ({ title, key, default }) }, so the core needs no update for a new feature
     NSMutableArray *sections = [NSMutableArray array];
     for (NSString *file in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:S4E_SECTIONS_DIR error:NULL]) {
         NSDictionary *section = [file.pathExtension isEqualToString:@"plist"]
@@ -598,10 +626,12 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
                 [specs addObject:[self s4e_switch:S4ESectionText(cell[@"title"]) key:cell[@"key"] fallback:[cell[@"default"] boolValue]]];
     }
 
-    [specs addObject:S4EGroup(nil, @"Пункты появятся и там, где они в новых iOS: Night Shift — в «Яркость и обои», "
-                                  @"энергосбережение — в «Основные → Статистика», жирный шрифт — в «Универсальный доступ».")];
-    [specs addObject:[self s4e_switch:@"Пункты в разделах Настроек" key:kS4ENativeSettings fallback:YES]];
-    [specs addObject:[self s4e_link:@"Разделы Настроек" detail:[S4EPaneLogController class]]];
+    [specs addObject:S4EGroup(nil, S4E_L(@"Items also appear where they live in newer iOS: Night Shift in Brightness & Wallpaper, "
+                                         @"Low Power Mode in General → Usage, Bold Text in Accessibility.",
+                                         @"Пункты появятся и там, где они в новых iOS: Night Shift — в «Яркость и обои», "
+                                         @"энергосбережение — в «Основные → Статистика», жирный шрифт — в «Универсальный доступ»."))];
+    [specs addObject:[self s4e_switch:S4E_L(@"Show in Settings Sections", @"Пункты в разделах Настроек") key:kS4ENativeSettings fallback:YES]];
+    [specs addObject:[self s4e_link:S4E_L(@"Settings Sections", @"Разделы Настроек") detail:[S4EPaneLogController class]]];
 
     [specs addObject:S4EGroup(nil, nil)];
     [specs addObject:[self s4e_choice:S4E_L(@"Language", @"Язык") key:kS4ELanguage values:@[@"auto", @"en", @"ru"]
@@ -616,7 +646,7 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
 
 @end
 
-#pragma mark - Пункт в корне Настроек
+#pragma mark - Entry at the root of Settings
 
 static UIImage *S4ESettingsIcon(void) {
     const CGFloat size = 29;
@@ -626,7 +656,7 @@ static UIImage *S4ESettingsIcon(void) {
 
     [[UIBezierPath bezierPathWithRoundedRect:CGRectMake(0, 0, size, size) cornerRadius:5.5] addClip];
 
-    // Небесно-голубая подложка
+    // Sky-blue background
     CGFloat sky[] = {0.45, 0.78, 0.99, 1, 0.10, 0.44, 0.84, 1};
     CGGradientRef skyGradient = CGGradientCreateWithColorComponents(space, sky, NULL, 2);
     CGContextDrawLinearGradient(ctx, skyGradient, CGPointZero, CGPointMake(0, size), 0);
@@ -655,7 +685,7 @@ static UIImage *S4ESettingsIcon(void) {
     CGContextEndTransparencyLayer(ctx);
     CGContextRestoreGState(ctx);
 
-    // Глянец сверху
+    // Gloss on top
     CGContextSaveGState(ctx);
     [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(-size * 0.5, -size * 0.75, size * 2, size * 1.25)] addClip];
     CGFloat gloss[] = {1, 1, 1, 0.45, 1, 1, 1, 0.08};
@@ -681,7 +711,7 @@ static void S4EInsertSettingsEntry(PSListController *root) {
     entry.identifier = @"IOS6REVIVE";
     [entry setProperty:S4ESettingsIcon() forKey:@"iconImage"];
 
-    // В конец группы «Основные, Звуки, Яркость и обои, Конфиденциальность», как PreferenceLoader.
+    // At the end of the General, Sounds, Brightness & Wallpaper, Privacy group, like PreferenceLoader.
     int group = 0, row = 0;
     NSUInteger index;
     if ([root respondsToSelector:@selector(getGroup:row:ofSpecifierID:)] && [root getGroup:&group row:&row ofSpecifierID:@"General"]) {

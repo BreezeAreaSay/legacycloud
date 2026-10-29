@@ -1,16 +1,16 @@
-// Превью скриншота (iOS 11) в стиле iOS 6: снимок уменьшается в левый нижний угол и лежит там
-// фотографией в белой рамке. Нажатие открывает разметку, свайп влево убирает превью, само оно
-// уходит через 5 секунд. Крестик в углу — как у иконок в режиме удаления iOS 6 — сразу удаляет снимок.
+// Screenshot preview (iOS 11) in iOS 6 style: the shot shrinks into the bottom-left corner and sits there
+// as a photo in a white frame. A tap opens markup, a swipe left dismisses the preview, and it goes away
+// on its own after 5 seconds. The close box in the corner (like iOS 6 icons in delete mode) deletes the shot at once.
 //
-// Как в iOS 11, пока превью на экране, снимка ещё нет в «Фото». Перехватить запись SpringBoard iOS 6
-// надёжно не вышло, поэтому снимок делаем сами вместо -[SBScreenShotter saveScreenshot:]: копия экрана
-// (_UICreateScreenUIImage), родная вспышка SBScreenFlash и звук затвора — снаружи всё как у SpringBoard.
-// Снимок держим у себя: когда превью уходит, он записывается как есть; после разметки — с пометками;
-// крестик и «Удалить скриншот» не записывают ничего. Страховка: снимок, который почему-то задержался
-// у нас дольше 20 секунд, записывается в любом случае.
+// As in iOS 11, the shot is not in Photos yet while the preview is on screen. Intercepting iOS 6 SpringBoard's
+// write reliably didn't work out, so we take the shot ourselves instead of -[SBScreenShotter saveScreenshot:]: a screen
+// copy (_UICreateScreenUIImage), the native SBScreenFlash flash and the shutter sound, so from outside it's just like SpringBoard.
+// We hold on to the shot: when the preview goes away it is saved as is; after markup, with the annotations;
+// the close box and "Delete Screenshot" save nothing. Safety net: a shot that for some reason stays
+// with us longer than 20 seconds is saved anyway.
 //
-// Если снять экран нечем, снимок делает сам SpringBoard, а превью появляется после записи
-// (finishedWritingScreenshot:…) — тогда снимок уже в «Фото», и разметка сохраняется копией.
+// If there is no way to capture the screen, SpringBoard takes the shot itself and the preview appears after it is written
+// (finishedWritingScreenshot:…); the shot is then already in Photos, and markup is saved as a copy.
 
 #import "S4EShared.h"
 #import "S4EMarkup.h"
@@ -41,7 +41,7 @@ static BOOL S4EShotEnabled(void) {
     return S4EBool(S4EPrefsRead(), kS4EScreenshot, YES);
 }
 
-// Окна SpringBoard не поворачиваются сами: корневой вид поворачиваем под программу на экране
+// SpringBoard windows don't rotate by themselves: rotate the root view to match the app on screen
 static UIView *S4EShotOrientedRoot(UIWindow *window) {
     UIApplication *springBoard = [UIApplication sharedApplication];
     UIInterfaceOrientation orientation = [springBoard respondsToSelector:@selector(activeInterfaceOrientation)]
@@ -58,7 +58,7 @@ static UIView *S4EShotOrientedRoot(UIWindow *window) {
     return root;
 }
 
-// Рамка картинки size, вписанной в rect
+// Frame of an image of the given size fitted into rect
 static CGRect S4EShotFit(CGSize size, CGRect rect) {
     if (size.width <= 0 || size.height <= 0)
         return rect;
@@ -67,7 +67,7 @@ static CGRect S4EShotFit(CGSize size, CGRect rect) {
     return CGRectMake(CGRectGetMidX(rect) - fit.width / 2, CGRectGetMidY(rect) - fit.height / 2, fit.width, fit.height);
 }
 
-// Крестик iOS 6, как у иконок в режиме удаления: чёрный кружок в белом кольце
+// The iOS 6 close box, as on icons in delete mode: a black circle in a white ring
 static UIImage *S4ECloseBoxImage(void) {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(30, 30), NO, 0);
     CGContextRef ctx = UIGraphicsGetCurrentContext();
@@ -95,7 +95,7 @@ static UIImage *S4ECloseBoxImage(void) {
     return image;
 }
 
-// Превью ловит касания и чуть за своими краями: крестик торчит из угла
+// The preview also catches touches slightly outside its edges: the close box sticks out of the corner
 @interface S4EShotThumbView : UIView
 @end
 
@@ -105,7 +105,7 @@ static UIImage *S4ECloseBoxImage(void) {
 }
 @end
 
-#pragma mark - Контроллер
+#pragma mark - Controller
 
 @interface S4EShotController : NSObject <UIGestureRecognizerDelegate>
 + (instancetype)shared;
@@ -118,7 +118,7 @@ static UIImage *S4ECloseBoxImage(void) {
 
 @implementation S4EShotController {
     UIImage *_image;
-    BOOL _held; // снимок ещё не записан в «Фото»
+    BOOL _held; // the shot is not saved to Photos yet
     UIWindow *_thumbWindow;
     UIView *_thumbRoot;
     UIView *_thumb;
@@ -146,9 +146,9 @@ static UIImage *S4ECloseBoxImage(void) {
     return _thumbWindow != nil;
 }
 
-#pragma mark Превью
+#pragma mark Preview
 
-// Место превью: левый нижний угол, белая рамка 3 пт вокруг снимка
+// Where the preview sits: the bottom-left corner, with a 3 pt white frame around the shot
 - (CGRect)thumbFrameIn:(CGRect)bounds {
     CGSize size = _image.size;
     CGFloat width = size.width > size.height ? 120 : 84;
@@ -167,10 +167,10 @@ static UIImage *S4ECloseBoxImage(void) {
     _thumbWindow = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
     _thumbWindow.windowLevel = kS4EShotThumbnailLevel;
     _thumbWindow.backgroundColor = [UIColor clearColor];
-    _thumbWindow.userInteractionEnabled = NO; // пока снимок летит в угол
+    _thumbWindow.userInteractionEnabled = NO; // while the shot flies into the corner
     _thumbRoot = S4EShotOrientedRoot(_thumbWindow);
 
-    // Снимок как фотография в белой рамке с тенью
+    // The shot as a photo in a white frame with a shadow
     _thumb = [[S4EShotThumbView alloc] initWithFrame:CGRectInset(S4EShotFit(image.size, _thumbRoot.bounds), -3, -3)];
     _thumb.backgroundColor = [UIColor whiteColor];
     _thumb.layer.shadowColor = [UIColor blackColor].CGColor;
@@ -181,7 +181,7 @@ static UIImage *S4ECloseBoxImage(void) {
     imageView.frame = CGRectInset(_thumb.bounds, 3, 3);
     imageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [_thumb addSubview:imageView];
-    // Крестик — только пока снимка нет в «Фото»: удалить оттуда уже записанный снимок нечем
+    // Close box only while the shot is not in Photos: there is no way to delete an already saved shot from there
     _closeBox = nil;
     if (held) {
         _closeBox = [UIButton buttonWithType:UIButtonTypeCustom];
@@ -208,11 +208,11 @@ static UIImage *S4ECloseBoxImage(void) {
     }];
 }
 
-// Снимок не должен потеряться, даже если превью почему-то не показалось или застряло
+// The shot must not get lost, even if the preview somehow never showed up or got stuck
 - (void)watchdog:(UIImage *)image {
     if (image != _image || !_held || _editorWindow)
         return;
-    S4ELog(@"превью скриншота: снимок задержался, записываю");
+    S4ELog(@"screenshot preview: shot held too long, saving it");
     S4ESaveToPhotos(_image);
     _held = NO;
 }
@@ -228,12 +228,12 @@ static UIImage *S4ECloseBoxImage(void) {
     [self scheduleTimeout];
 }
 
-// Касания крестика — его собственные, а не нажатие или свайп по превью
+// Touches on the close box are its own, not a tap or swipe on the preview
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch {
     return !_closeBox || ![touch.view isDescendantOfView:_closeBox];
 }
 
-// Крестик: снимок не записывается, превью сжимается и исчезает
+// Close box: the shot is not saved, the preview shrinks and disappears
 - (void)deleteTapped {
     if (!_thumb || !_held)
         return;
@@ -261,7 +261,7 @@ static UIImage *S4ECloseBoxImage(void) {
     [self slideThumbnailAway];
 }
 
-// Превью уходит влево; снимок записывается, если ещё не записан
+// The preview slides away to the left; the shot is saved if it hasn't been yet
 - (void)slideThumbnailAway {
     if (!_thumb)
         return;
@@ -302,7 +302,7 @@ static UIImage *S4ECloseBoxImage(void) {
         [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(thumbnailTimedOut) object:nil];
         break;
     case UIGestureRecognizerStateChanged:
-        // Влево свободно, вправо — с сопротивлением
+        // Free to the left, with resistance to the right
         _thumb.frame = CGRectOffset(_thumbHome, dx < 0 ? dx : dx * 0.3, 0);
         break;
     case UIGestureRecognizerStateEnded:
@@ -321,7 +321,7 @@ static UIImage *S4ECloseBoxImage(void) {
     }
 }
 
-#pragma mark Разметка
+#pragma mark Markup
 
 - (void)thumbTapped {
     if (!_thumb || !_image)
@@ -335,13 +335,13 @@ static UIImage *S4ECloseBoxImage(void) {
     UIView *root = S4EShotOrientedRoot(_editorWindow);
     _markup = [[S4EMarkupView alloc] initWithFrame:root.bounds image:image canDelete:_held];
     _markup.alpha = 0;
-    // Через синглтон, а не self: без цикла удержания и без __weak (на armv7 он требует таблиц SjLj)
+    // Via the singleton rather than self: no retain cycle and no __weak (on armv7 it needs SjLj tables)
     _markup.onFinish = ^(S4EMarkupAction action) {
         [[S4EShotController shared] finishEditing:action animated:YES];
     };
     [root addSubview:_markup];
 
-    // Превью вырастает в снимок на экране разметки
+    // The preview grows into the shot on the markup screen
     UIImageView *zoom = [[UIImageView alloc] initWithImage:image];
     zoom.frame = [root convertRect:from fromView:nil];
     [root addSubview:zoom];
@@ -371,9 +371,9 @@ static UIImage *S4ECloseBoxImage(void) {
         return;
     [_markup dismissSheet];
     UIImage *result = nil;
-    if (_held) // снимка ещё нет в «Фото»: записываем его — с пометками или без
+    if (_held) // the shot is not in Photos yet: save it, with or without annotations
         result = action == S4EMarkupKeep ? (_markup.edited ? [_markup renderedImage] : _image) : nil;
-    else // снимок уже в «Фото»: пометки сохраняем копией
+    else // the shot is already in Photos: save the annotations as a copy
         result = action == S4EMarkupKeep && _markup.edited ? [_markup renderedImage] : nil;
     if (result)
         S4ESaveToPhotos(result);
@@ -408,7 +408,7 @@ static void S4EShotPresent(UIImage *image, BOOL held) {
     [controller presentImage:image held:held];
 }
 
-// Копия экрана: _UICreateScreenUIImage(WithRotation) в UIKit iOS 6, иначе UIGetScreenImage
+// Screen copy: _UICreateScreenUIImage(WithRotation) in iOS 6 UIKit, otherwise UIGetScreenImage
 static UIImage *S4ECaptureScreen(void) {
     void *(*withRotation)(BOOL) = (void *(*)(BOOL))dlsym(RTLD_DEFAULT, "_UICreateScreenUIImageWithRotation");
     if (withRotation)
@@ -425,20 +425,20 @@ static UIImage *S4ECaptureScreen(void) {
     return image;
 }
 
-// Звук затвора, как у снимка экрана; системный звук молчит при выключенном звонке
+// Shutter sound, as for a screenshot; the system sound is silent when the ringer is off
 static void S4EPlayShutter(void) {
     void (*play)(uint32_t) = (void (*)(uint32_t))dlsym(RTLD_DEFAULT, "AudioServicesPlaySystemSound");
     if (play)
         play(1108);
 }
 
-// Наш снимок вместо снимка SpringBoard: превью и разметка тогда работают полностью
+// Our shot instead of SpringBoard's: that way the preview and markup work fully
 static void (*orig_saveScreenshot)(id, SEL, BOOL);
 static void hook_saveScreenshot(id self, SEL _cmd, BOOL flash) {
     S4EShotController *controller = [S4EShotController shared];
     if (controller.showingThumbnail) {
         [controller removeThumbnail];
-        [CATransaction flush]; // старое превью не должно попасть в кадр
+        [CATransaction flush]; // the old preview must not end up in the shot
     }
     UIImage *image = S4EShotEnabled() && !controller.editing ? S4ECaptureScreen() : nil;
     if (!image) {
@@ -454,7 +454,7 @@ static void hook_saveScreenshot(id self, SEL _cmd, BOOL flash) {
     S4EShotPresent(image, YES);
 }
 
-// Запасной путь: снимок сделал SpringBoard (снять экран было нечем) — превью после записи
+// Fallback: SpringBoard took the shot (there was no way to capture the screen), so the preview comes after the write
 static void (*orig_finishedWriting)(id, SEL, UIImage *, NSError *, void *);
 static void hook_finishedWriting(id self, SEL _cmd, UIImage *image, NSError *error, void *context) {
     orig_finishedWriting(self, _cmd, image, error, context);
@@ -465,7 +465,7 @@ static void hook_finishedWriting(id self, SEL _cmd, UIImage *image, NSError *err
     });
 }
 
-// «Домой» на экране разметки закрывает её и сохраняет снимок с пометками
+// Home on the markup screen closes it and saves the shot with the annotations
 static BOOL gSwallowMenuUp;
 
 static void (*orig_menuButtonDown)(id, SEL, void *);
@@ -488,7 +488,7 @@ static void hook_menuButtonUp(id self, SEL _cmd, void *event) {
     orig_menuButtonUp(self, _cmd, event);
 }
 
-// Блокировка: ничего не теряем — снимок записывается, разметка закрывается с пометками
+// Lock: nothing is lost; the shot is saved and markup closes keeping the annotations
 static void S4EShotLockStateChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
     dispatch_async(dispatch_get_main_queue(), ^{
         S4EShotController *controller = [S4EShotController shared];

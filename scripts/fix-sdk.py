@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Дописывает в заглушку libobjc из theos/sdks символы, которые есть только у 32-битного рантайма.
+"""Adds to the libobjc stub from theos/sdks the symbols that only the 32-bit runtime has.
 
-Заглушки theos/sdks содержат один список символов на все архитектуры, поэтому функции,
-которых нет на arm64, из них выпали. На armv7 (iOS 6) objc_msgSend_stret и родственники
-существуют, и компилятор вызывает их для методов, возвращающих CGRect, CGPoint, CGSize.
+The theos/sdks stubs hold a single symbol list for all architectures, so the functions
+that arm64 lacks have dropped out of them. On armv7 (iOS 6) objc_msgSend_stret and its relatives
+do exist, and the compiler calls them for methods that return CGRect, CGPoint or CGSize.
 
-Использование: scripts/fix-sdk.py путь/к/iPhoneOS10.3.sdk  (повторный запуск ничего не меняет)
+Usage: scripts/fix-sdk.py path/to/iPhoneOS10.3.sdk  (running it again changes nothing)
 """
 
 import sys
 from pathlib import Path
 
-MARKER = "# Skeuo4Ever: 32-битные символы"
+MARKER = "# Skeuo4Ever: 32-bit symbols"
 BLOCK = f"""  {MARKER}
   - archs:                [ armv7, armv7s ]
     symbols:              [ _objc_msgSendSuper2_stret, _objc_msgSendSuper_stret,
@@ -26,13 +26,13 @@ def main() -> None:
         return
     lines = text.rstrip("\n").split("\n")
     if lines[-1] != "..." or not any(line.startswith("exports:") for line in lines):
-        sys.exit(f"неожиданный формат {tbd}: не могу дописать символы")
-    # exports — последний ключ документа, поэтому новый блок встаёт перед «...»
+        sys.exit(f"unexpected format of {tbd}: cannot add the symbols")
+    # exports is the last key of the document, so the new block goes before "..."
     last_key = max(i for i, line in enumerate(lines) if line and not line.startswith(" ") and line != "...")
     if not lines[last_key].startswith("exports:"):
-        sys.exit(f"в {tbd} после exports есть другие ключи: не могу дописать символы")
+        sys.exit(f"{tbd} has other keys after exports: cannot add the symbols")
     tbd.write_text("\n".join(lines[:-1]) + "\n" + BLOCK + "...\n")
-    print(f"дописаны 32-битные символы в {tbd}")
+    print(f"added the 32-bit symbols to {tbd}")
 
 
 if __name__ == "__main__":

@@ -1,22 +1,22 @@
-// Разметка скриншота (iOS 11) в стиле iOS 6: чёрные полупрозрачные панели, как в «Фото» при просмотре,
-// перо, маркер и ластик в сегментах, шесть глянцевых цветов и отмена.
+// Screenshot markup (iOS 11) in iOS 6 style: black translucent bars, as when viewing a picture in Photos,
+// pen, marker and eraser in a segmented control, six glossy colors and undo.
 
 #pragma once
 
 #import <UIKit/UIKit.h>
 
 typedef enum {
-    S4EMarkupKeep,   // закрыть и оставить снимок — с пометками, если они есть
-    S4EMarkupDelete, // удалить снимок, а если он уже в «Фото» — не сохранять пометки
+    S4EMarkupKeep,   // close and keep the shot, with annotations if there are any
+    S4EMarkupDelete, // delete the shot, or if it is already in Photos, don't save the annotations
 } S4EMarkupAction;
 
 @interface S4EMarkupView : UIView
-// canDelete: снимок ещё не записан в «Фото», и его можно удалить, как в iOS 11
+// canDelete: the shot is not saved to Photos yet and can be deleted, as in iOS 11
 - (instancetype)initWithFrame:(CGRect)frame image:(UIImage *)image canDelete:(BOOL)canDelete;
 @property(nonatomic, copy) void (^onFinish)(S4EMarkupAction action);
 @property(nonatomic, readonly) BOOL edited;
 @property(nonatomic, readonly) CGRect imageFrame;
 - (UIImage *)renderedImage;
-// Закрыть открытое меню действий, если экран уходит без ответа (блокировка, «Домой»)
+// Closes an open action sheet if the screen goes away without an answer (lock, Home)
 - (void)dismissSheet;
 @end

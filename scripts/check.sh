@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Быстрая проверка без полной сборки:
-#  1. компилирует каждый твик под armv7 / iOS 6 системным clang против SDK из Theos;
-#  2. проверяет, что все внешние символы есть в заглушках SDK для armv7 (scripts/linkcheck.py).
+# Quick check without a full build:
+#  1. compiles every tweak for armv7 / iOS 6 with the system clang against the SDK from Theos;
+#  2. checks that every external symbol is in the SDK's armv7 stubs (scripts/linkcheck.py).
 set -euo pipefail
-: "${THEOS:?укажите путь к Theos в THEOS}"
+: "${THEOS:?set THEOS to the path to Theos}"
 SDK="${SDK:-$THEOS/sdks/iPhoneOS10.3.sdk}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$(mktemp -d)"
@@ -13,7 +13,7 @@ python3 "$ROOT/scripts/fix-sdk.py" "$SDK"
 
 status=0
 for file in "$ROOT"/tweaks/*/*.m; do
-    # -fsjlj-exceptions: как clang 11 из тулчейна Theos для armv7
+    # -fsjlj-exceptions: same as clang 11 from the Theos toolchain for armv7
     if clang -target armv7-apple-ios6.0 -isysroot "$SDK" -fobjc-arc -fsjlj-exceptions \
         -Wall -Wextra -Wno-unused-parameter -Werror \
         -I"$ROOT/shared" -I"$THEOS/vendor/include" -F"$THEOS/vendor/lib" \
@@ -25,6 +25,6 @@ for file in "$ROOT"/tweaks/*/*.m; do
     fi
 done
 
-echo "--- линковка (заглушки armv7)"
+echo "--- link (armv7 stubs)"
 python3 "$ROOT/scripts/linkcheck.py" "$SDK" "$THEOS/vendor/lib" "$OUT"/*.o || status=1
 exit $status

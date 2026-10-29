@@ -1,10 +1,10 @@
-// Смахивание назад от левого края экрана (iOS 7) с анимацией сдвига iOS 6.
+// Swipe back from the left screen edge (iOS 7) with the iOS 6 slide animation.
 //
-// iOS 6 не умеет интерактивные переходы, поэтому экран рисуется снимками:
-//  * перед каждым push снимаем текущий экран и вешаем снимок на контроллер, который уходит вниз;
-//  * при жесте два снимка (предыдущий и текущий экран) едут вместе за пальцем, как страницы в iOS 6;
-//  * если жест завершён — делаем настоящий pop без анимации и плавно убираем снимки.
-// Отмена жеста ничего не меняет в программе: стек контроллеров трогается только при завершении.
+// iOS 6 has no interactive transitions, so the screens are drawn from snapshots:
+//  * before every push, snapshot the current screen and attach it to the controller that is being covered;
+//  * during the gesture, two snapshots (previous and current screen) slide together with the finger, like pages in iOS 6;
+//  * if the gesture completes, do a real pop without animation and fade the snapshots out.
+// Cancelling the gesture changes nothing in the app: the controller stack is touched only on completion.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
@@ -37,7 +37,7 @@ static void S4EForgetSnapshot(UIViewController *controller) {
         objc_setAssociatedObject(controller, kS4ESnapshotKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
-#pragma mark - Тень по краю уезжающего экрана
+#pragma mark - Shadow along the edge of the departing screen
 
 @interface S4ESwipeShadowView : UIView
 @end
@@ -64,7 +64,7 @@ static void S4EForgetSnapshot(UIViewController *controller) {
 
 @end
 
-#pragma mark - Жест
+#pragma mark - Gesture
 
 @interface S4ESwipeBackHandler : NSObject <UIGestureRecognizerDelegate>
 + (instancetype)shared;
@@ -108,7 +108,7 @@ static UINavigationController *S4ENavigationForRecognizer(UIGestureRecognizer *r
     if (controllers.count < 2)
         return nil;
     UIImage *snapshot = objc_getAssociatedObject(controllers[controllers.count - 2], kS4ESnapshotKey);
-    // После поворота или скрытия панели вкладок старый снимок уже не совпадает с экраном.
+    // After a rotation or the tab bar hiding, the old snapshot no longer matches the screen.
     return CGSizeEqualToSize(snapshot.size, nav.view.bounds.size) ? snapshot : nil;
 }
 
@@ -119,7 +119,7 @@ static UINavigationController *S4ENavigationForRecognizer(UIGestureRecognizer *r
         return NO;
     if (CFAbsoluteTimeGetCurrent() - gLastTransition < 0.35)
         return NO;
-    // Как в iOS 7: своя левая кнопка (например «Отменить») отключает жест.
+    // As in iOS 7: a custom left button (e.g. "Cancel") disables the gesture.
     UINavigationItem *item = nav.topViewController.navigationItem;
     if (item.hidesBackButton || (item.leftBarButtonItem && !item.leftItemsSupplementBackButton))
         return NO;
@@ -143,7 +143,7 @@ static UINavigationController *S4ENavigationForRecognizer(UIGestureRecognizer *r
     return [self canBeginForNavigation:S4ENavigationForRecognizer(recognizer)];
 }
 
-// Прокрутка под пальцем могла начаться раньше нас — разрешаем и гасим её в начале жеста.
+// Scrolling under the finger may have started before us: allow it and stop it when the gesture begins.
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)other {
     UIView *view = other.view;
     return [view isKindOfClass:[UIScrollView class]] && other == ((UIScrollView *)view).panGestureRecognizer;
@@ -213,7 +213,7 @@ static UINavigationController *S4ENavigationForRecognizer(UIGestureRecognizer *r
                      completion:^(BOOL finished) {
                          if (complete) {
                              [nav popViewControllerAnimated:NO];
-                             // Снимок предыдущего экрана мог устареть — мягко проявляем живой экран.
+                             // The previous screen's snapshot may be stale: gently reveal the live screen.
                              [UIView animateWithDuration:0.15 animations:^{
                                  overlay.alpha = 0;
                              } completion:^(BOOL done) {
@@ -241,7 +241,7 @@ static UINavigationController *S4ENavigationForRecognizer(UIGestureRecognizer *r
     switch (recognizer.state) {
     case UIGestureRecognizerStateBegan:
         if (!nav || ![self beginWithNavigation:nav]) {
-            recognizer.enabled = NO; // отменяем жест
+            recognizer.enabled = NO; // cancel the gesture
             recognizer.enabled = YES;
         }
         break;
@@ -270,7 +270,7 @@ static UINavigationController *S4ENavigationForRecognizer(UIGestureRecognizer *r
 
 @end
 
-#pragma mark - Перехваты UINavigationController
+#pragma mark - UINavigationController hooks
 
 static void (*orig_viewDidLoad)(UINavigationController *, SEL);
 static void hook_viewDidLoad(UINavigationController *self, SEL _cmd) {
@@ -281,7 +281,7 @@ static void hook_viewDidLoad(UINavigationController *self, SEL _cmd) {
 static void (*orig_viewDidAppear)(UINavigationController *, SEL, BOOL);
 static void hook_viewDidAppear(UINavigationController *self, SEL _cmd, BOOL animated) {
     orig_viewDidAppear(self, _cmd, animated);
-    [[S4ESwipeBackHandler shared] attachToNavigationController:self]; // если подкласс не вызвал viewDidLoad у super
+    [[S4ESwipeBackHandler shared] attachToNavigationController:self]; // in case a subclass did not call super's viewDidLoad
 }
 
 static void (*orig_push)(UINavigationController *, SEL, UIViewController *, BOOL);
@@ -300,7 +300,7 @@ static UIViewController *(*orig_pop)(UINavigationController *, SEL, BOOL);
 static UIViewController *hook_pop(UINavigationController *self, SEL _cmd, BOOL animated) {
     gLastTransition = CFAbsoluteTimeGetCurrent();
     UIViewController *popped = orig_pop(self, _cmd, animated);
-    S4EForgetSnapshot(self.topViewController); // снимок нужен, только пока контроллер закрыт другим
+    S4EForgetSnapshot(self.topViewController); // the snapshot is needed only while the controller is covered by another
     return popped;
 }
 

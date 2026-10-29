@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Печатает JSON {пакет: отпечаток исходников}.
+"""Prints JSON {package: source fingerprint}.
 
-Сборка под armv7 не воспроизводима побайтно (подпись, время в архиве), поэтому
-публикация сравнивает не .deb, а исходники, из которых он собран:
-  твик — его каталог, shared/, common.mk и scripts/fix-sdk.py;
-  мета-пакет — его каталог.
-Учитываются только файлы под git, чтобы не цеплять результаты сборки.
+The armv7 build is not byte-for-byte reproducible (code signature, timestamps in the archive), so
+publishing compares not the .deb but the sources it was built from:
+  a tweak: its directory, shared/, common.mk and scripts/fix-sdk.py;
+  a meta package: its directory.
+Only files tracked by git count, so that build output is not picked up.
 """
 
 import hashlib
@@ -34,7 +34,7 @@ def package_id(control: Path) -> str:
     for line in control.read_text().splitlines():
         if line.startswith("Package: "):
             return line[len("Package: "):]
-    raise SystemExit(f"нет Package в {control}")
+    raise SystemExit(f"no Package in {control}")
 
 
 def main() -> None:

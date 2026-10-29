@@ -1,0 +1,3 @@
+As in iOS 9: in Safari, tap Share and choose Request Desktop Site — the page reloads in its desktop version. Request Mobile Site in the same menu brings the usual one back.
+
+Mobile addresses like m.site.com are replaced with the regular ones automatically.

@@ -1,5 +1,5 @@
-// Ядро Skeuo4Ever в SpringBoard: публикует состояние функций для программ из песочницы
-// и перезапускает SpringBoard по запросу из Настроек.
+// Skeuo4Ever core in SpringBoard: publishes the feature state for sandboxed apps
+// and restarts SpringBoard when Settings asks for it.
 
 #import "S4EShared.h"
 #import "S4EPrivate.h"
@@ -17,7 +17,7 @@ static void S4EPublishState(void) {
     if (S4EBool(prefs, kS4EBoldText, NO))
         state |= S4EStateBoldText;
 
-    // Токен не отменяем: пока он открыт, notifyd хранит состояние.
+    // The token is never cancelled: while it stays open, notifyd keeps the state.
     if (!gStateTokenReady)
         gStateTokenReady = notify_register_check(S4E_NOTIFY_STATE, &gStateToken) == NOTIFY_STATUS_OK;
     if (gStateTokenReady)
@@ -35,7 +35,7 @@ static void S4ERespring(CFNotificationCenterRef center, void *observer, CFString
     if ([springBoard respondsToSelector:@selector(_relaunchSpringBoardNow)])
         [springBoard _relaunchSpringBoardNow];
     else
-        exit(0); // launchd сразу поднимет SpringBoard заново
+        exit(0); // launchd brings SpringBoard right back up
 }
 
 __attribute__((constructor)) static void S4ECoreInit(void) {

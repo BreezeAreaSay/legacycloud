@@ -1,0 +1,6 @@
+The Bold Text option from iOS 7: the system font and Helvetica become one weight bolder in every app.
+
+After you switch it, SpringBoard and all apps restart — just like in iOS 7.
+
+## Settings
+General → Accessibility → Bold Text, as in iOS 7. The same item is in Settings → Skeuo4Ever.

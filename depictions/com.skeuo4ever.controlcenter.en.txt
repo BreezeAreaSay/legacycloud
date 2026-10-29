@@ -1,0 +1,16 @@
+Control Center from iOS 7, built the iOS 6 way. Swipe up from the bottom edge of the screen: a grey linen panel with square buttons in grey frames slides up, like Auxo.
+
+- Airplane Mode, Wi‑Fi, Bluetooth, Do Not Disturb and Orientation Lock — the ones that are on glow glossy blue;
+- the native brightness slider;
+- what's playing, music controls and volume with audio output selection — to AirPods, for example;
+- flashlight, timer, calculator and camera.
+
+In an app turned sideways, the panel opens in that orientation and lays out in one row, like iOS 7 on iPad: music, toggles and apps on top, volume and brightness below.
+
+To close the panel, swipe it down, tap the dimmed part of the screen or press Home.
+
+## Gesture
+The gesture comes from Activator: iOS 6 has no other way to catch an edge swipe over apps. On first launch, Control Center takes "Slide in from the bottom" — left, middle and right — if those gestures are free, so the panel opens from anywhere along the bottom edge. To change it: Activator → pick a gesture → Skeuo4Ever → Control Center. A Home double press or a status bar gesture work too.
+
+## Settings
+Settings → Skeuo4Ever → Control Center.

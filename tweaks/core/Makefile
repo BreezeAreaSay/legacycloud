@@ -1,7 +1,7 @@
 include ../../common.mk
 include $(THEOS)/makefiles/common.mk
 
-# Два модуля: S4ECore живёт в SpringBoard, S4ESettings — в Настройках (тянет Preferences.framework).
+# Two modules: S4ECore lives in SpringBoard, S4ESettings in Settings (it links Preferences.framework).
 TWEAK_NAME = S4ECore S4ESettings
 
 S4ECore_FILES = S4ECore.m

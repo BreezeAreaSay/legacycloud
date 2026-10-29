@@ -1,5 +1,5 @@
-// Приватные API iOS 6.1, которыми пользуются твики.
-// Сверено с class-dump iOS 6.1 (MP0w/iOS-Headers). Всё вызывается через проверки respondsToSelector.
+// iOS 6.1 private APIs used by the tweaks.
+// Checked against the iOS 6.1 class-dump (MP0w/iOS-Headers). Everything is called behind respondsToSelector checks.
 
 #pragma once
 
@@ -28,7 +28,7 @@
 - (id)webView;
 @end
 
-// WebKit (WebKit1 внутри UIKit)
+// WebKit (WebKit1 inside UIKit)
 
 @interface WebDataSource : NSObject
 - (NSURLRequest *)request;

@@ -1,0 +1,15 @@
+Every Skeuo4Ever feature in one package:
+- Control Center
+- Screenshot Preview
+- Space Bar Cursor
+- Swipe Back
+- Low Power Mode and Battery Health
+- Night Shift
+- The "New" sash on every new app
+- Bold Text
+- Request Desktop Site
+
+You can remove any feature separately later.
+
+## Moving from iOS6Revive
+The project used to be called iOS6Revive. This package replaces all the old iOS6Revive packages: Cydia removes them and installs the new ones. Settings and Activator gestures carry over by themselves.

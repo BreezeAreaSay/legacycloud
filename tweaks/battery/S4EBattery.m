@@ -234,11 +234,12 @@ static void hook_configure(SBLowPowerAlertItem *self, SEL _cmd, BOOL configure, 
     UIAlertView *sheet = [self alertSheet];
     if (![sheet isKindOfClass:[UIAlertView class]])
         return;
-    // The alert is configured again after unlocking — don't add the button a second time.
+    // The alert is configured again after unlocking — don't add the button a second time,
+    // even if the language changed in between.
     NSString *title = S4E_L(@"Low Power Mode", @"Энергосбережение");
     NSInteger index = -1;
     for (NSInteger i = 0; i < sheet.numberOfButtons; i++)
-        if ([[sheet buttonTitleAtIndex:i] isEqualToString:title])
+        if ([@[@"Low Power Mode", @"Энергосбережение"] containsObject:[sheet buttonTitleAtIndex:i]])
             index = i;
     if (index < 0)
         index = [sheet addButtonWithTitle:title];

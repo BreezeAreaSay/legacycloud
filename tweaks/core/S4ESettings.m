@@ -479,7 +479,7 @@ static void S4EInjectNative(PSListController *controller) {
 // Log of the recently opened sections: class, title and rows (name, ID, settings key).
 static void S4ELogPane(PSListController *controller) {
     NSString *name = NSStringFromClass([controller class]);
-    if ([name hasPrefix:@"IR"])
+    if ([name hasPrefix:@"S4E"])
         return;
     NSMutableArray *rows = [NSMutableArray array];
     for (PSSpecifier *spec in S4ESpecifiers(controller)) {
@@ -594,11 +594,11 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
     }
 
     if (S4EFeatureInstalled(@"S4ENewSash")) {
-        [specs addObject:S4EGroup(nil, S4E_L(@"A “New” ribbon on the icon of a newly installed app — not only from the App Store, "
+        [specs addObject:S4EGroup(nil, S4E_L(@"The “New” sash on the icon of a newly installed app — not only from the App Store, "
                                              @"but also from an ipa or Cydia. It disappears after the first launch.",
                                              @"Лента «Новое» на иконке только что установленной программы — не только из App Store, "
                                              @"но и из ipa или Cydia. Исчезает после первого запуска."))];
-        [specs addObject:[self s4e_switch:S4E_L(@"“New” Ribbon", @"Лента «Новое»") key:kS4ENewSash fallback:YES]];
+        [specs addObject:[self s4e_switch:S4E_L(@"New App Sash", @"Лента «Новое»") key:kS4ENewSash fallback:YES]];
     }
 
     if (S4EFeatureInstalled(@"S4EDesktopSite"))

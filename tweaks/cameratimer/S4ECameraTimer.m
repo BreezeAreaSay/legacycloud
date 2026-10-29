@@ -162,7 +162,9 @@ static void (*orig_shutterClicked)(PLCameraView *, SEL);
 @property(nonatomic, strong) UIView *group;
 @property(nonatomic, strong) UILabel *label;
 @property(nonatomic, strong) UISegmentedControl *control;
-@property(nonatomic) CGFloat panoramaGap; // between Camera's own groups and Panorama; -1 until measured
+@property(nonatomic) CGFloat contentCenter;     // vertical center of a row's title within its group
+@property(nonatomic) BOOL placed;
+@property(nonatomic) CGFloat panoramaY, movedPanoramaY; // where Camera put Panorama, and where we moved it
 @end
 
 @implementation S4ETimerRow
@@ -171,7 +173,6 @@ static void (*orig_shutterClicked)(PLCameraView *, SEL);
     Class groupClass = objc_getClass("PLCameraSettingsGroupView");
     if (!groupClass || !(self = [super init]))
         return nil;
-    _panoramaGap = -1;
     _group = [[groupClass alloc] initWithFrame:CGRectZero];
     _label = [[UILabel alloc] initWithFrame:CGRectZero];
     _label.backgroundColor = [UIColor clearColor];
@@ -191,7 +192,7 @@ static void (*orig_shutterClicked)(PLCameraView *, SEL);
 }
 
 // The label and the control copy the look and the margins of the Grid and HDR rows
-- (void)layoutLikeGroup:(UIView *)model {
+- (void)layoutLikeGroup:(UIView *)model centerY:(CGFloat)centerY {
     PLCameraSettingsGroupView *row = (PLCameraSettingsGroupView *)model;
     UILabel *title = [row respondsToSelector:@selector(titleLabel)] ? row.titleLabel : nil;
     UISwitch *toggle = [row respondsToSelector:@selector(accessorySwitch)] ? row.accessorySwitch : nil;
@@ -209,13 +210,17 @@ static void (*orig_shutterClicked)(PLCameraView *, SEL);
     _control.tintColor = toggle.onTintColor ?: [UIColor colorWithWhite:0.42 alpha:1];
 
     CGFloat left = title.frame.origin.x > 0 ? title.frame.origin.x : 10;
-    CGFloat right = toggle ? model.bounds.size.width - CGRectGetMaxX(toggle.frame) : left;
+    // The switch image is narrower than its 79 pt frame: align with what is drawn
+    CGFloat right = toggle ? model.bounds.size.width - CGRectGetMaxX(toggle.frame) + 2 : left;
     if (right < 0 || right > 40)
         right = left;
     CGFloat height = MIN(30, size.height - 10);
     CGFloat width = MAX(96, MIN(150, size.width - left - right - 80));
-    _control.frame = CGRectMake(size.width - right - width, roundf((size.height - height) / 2), width, height);
-    _label.frame = CGRectMake(left, 0, CGRectGetMinX(_control.frame) - left - 8, size.height);
+    if (centerY <= 0 || centerY >= size.height)
+        centerY = size.height / 2;
+    _control.frame = CGRectMake(size.width - right - width, roundf(centerY - height / 2), width, height);
+    CGFloat labelHeight = ceilf(_label.font.lineHeight) + 2;
+    _label.frame = CGRectMake(left, roundf(centerY - labelHeight / 2), CGRectGetMinX(_control.frame) - left - 8, labelHeight);
 }
 
 @end
@@ -229,8 +234,17 @@ static int S4EGroupType(UIView *group) {
     return [group respondsToSelector:@selector(type)] ? [(PLCameraSettingsGroupView *)group type] : 0;
 }
 
-// Height of one row and the gap between separate groups, as Camera lays them out; remembered for sizeThatFits:
-static CGFloat gS4ERowHeight = 47, gS4EGap = 18;
+// How far Panorama moves down to make room: one group and one gap, remembered for sizeThatFits:
+static CGFloat gS4EStep = 65;
+
+// Center of a group's title, in the group's coordinates; -1 if it has none
+static CGFloat S4ETitleCenter(UIView *group) {
+    [group layoutIfNeeded];
+    UILabel *title = [group respondsToSelector:@selector(titleLabel)] ? [(PLCameraSettingsGroupView *)group titleLabel] : nil;
+    if (![title isKindOfClass:[UILabel class]] || !title.superview || title.frame.size.height <= 0)
+        return -1;
+    return CGRectGetMidY([title.superview convertRect:title.frame toView:group]);
+}
 
 static void (*orig_settingsLayout)(UIView *, SEL);
 static void hook_settingsLayout(UIView *self, SEL _cmd) {
@@ -246,32 +260,40 @@ static void hook_settingsLayout(UIView *self, SEL _cmd) {
         return;
     }
     row.group.hidden = NO;
-    CGFloat height = above.frame.size.height > 0 ? above.frame.size.height : gS4ERowHeight;
-    // Measured once, before Panorama is moved down
-    if (pano && row.panoramaGap < 0 && above.frame.size.height > 0 && pano.frame.size.height > 0)
-        row.panoramaGap = MAX(0, CGRectGetMinY(pano.frame) - CGRectGetMaxY(above.frame));
-    // Grid and HDR share one rounded group: a top and a bottom piece with no gap. Then the timer is a group
-    // of its own, shaped like Panorama's; if they ever come as separate groups, it is one more like HDR.
-    BOOL shared = grid && hdr && fabs(CGRectGetMinY(hdr.frame) - CGRectGetMaxY(grid.frame)) < 1 && S4EGroupType(grid) != S4EGroupType(hdr);
-    CGFloat gap = grid && hdr && !shared ? CGRectGetMinY(hdr.frame) - CGRectGetMaxY(grid.frame)
-                : row.panoramaGap >= 0 ? row.panoramaGap : gS4EGap;
-    if (gap < 0 || gap > 40)
-        gap = gS4EGap;
-    gS4ERowHeight = height;
-    gS4EGap = gap;
-
-    UIView *model = shared && pano ? pano : above;
+    UIView *model;
+    CGRect frame;
+    if (pano) {
+        // The timer takes Panorama's place and shape (a group of its own), and Panorama moves one step lower.
+        // The step is measured between the titles: frames include the groups' shadows, which differ by shape.
+        CGRect panoFrame = pano.frame;
+        if (row.placed && fabs(panoFrame.origin.y - row.movedPanoramaY) < 0.5)
+            panoFrame.origin.y = row.panoramaY; // Camera didn't lay it out again
+        CGFloat aboveCenter = S4ETitleCenter(above), panoCenter = S4ETitleCenter(pano);
+        CGFloat step = aboveCenter >= 0 && panoCenter >= 0 ? (panoFrame.origin.y + panoCenter) - (above.frame.origin.y + aboveCenter)
+                                                           : panoFrame.origin.y - above.frame.origin.y;
+        if (step <= 0 || step > 200)
+            step = gS4EStep;
+        gS4EStep = step;
+        model = pano;
+        frame = panoFrame;
+        row.contentCenter = panoCenter;
+        row.panoramaY = panoFrame.origin.y;
+        panoFrame.origin.y += step;
+        pano.frame = panoFrame;
+        row.movedPanoramaY = panoFrame.origin.y;
+        row.placed = YES;
+    } else {
+        // No Panorama on this device: one more group under Grid and HDR
+        model = above;
+        frame = CGRectOffset(above.frame, 0, gS4EStep);
+        row.contentCenter = S4ETitleCenter(above);
+    }
     if ([row.group respondsToSelector:@selector(setType:)] && S4EGroupType(row.group) != S4EGroupType(model)) {
         [(PLCameraSettingsGroupView *)row.group setType:S4EGroupType(model)];
         [row.group setNeedsDisplay];
     }
-    row.group.frame = CGRectMake(above.frame.origin.x, CGRectGetMaxY(above.frame) + gap, above.frame.size.width, height);
-    [row layoutLikeGroup:above];
-    if (pano) {
-        CGRect frame = pano.frame;
-        frame.origin.y = CGRectGetMaxY(row.group.frame) + (row.panoramaGap >= 0 ? row.panoramaGap : gap);
-        pano.frame = frame;
-    }
+    row.group.frame = frame;
+    [row layoutLikeGroup:above centerY:row.contentCenter];
 
     // In case Camera sized the panel before we could measure a row: grow it downwards
     CGFloat needed = CGRectGetMaxY(pano ? pano.frame : row.group.frame);
@@ -288,7 +310,7 @@ static CGSize (*orig_settingsSizeThatFits)(UIView *, SEL, CGSize);
 static CGSize hook_settingsSizeThatFits(UIView *self, SEL _cmd, CGSize size) {
     CGSize fits = orig_settingsSizeThatFits(self, _cmd, size);
     if (objc_getAssociatedObject(self, kS4ETimerRowKey))
-        fits.height += gS4ERowHeight + gS4EGap;
+        fits.height += gS4EStep;
     return fits;
 }
 

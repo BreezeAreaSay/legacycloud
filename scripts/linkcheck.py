@@ -9,7 +9,6 @@ Usage: scripts/linkcheck.py SDK VENDOR_LIB OBJECT...
 Reads the symbol tables with llvm-nm.
 """
 
-import re
 import shutil
 import subprocess
 import sys
@@ -77,9 +76,9 @@ def main() -> int:
             defined |= set(subprocess.run([nm, "--defined-only", "-j", obj], check=True, capture_output=True, text=True).stdout.split())
         for obj in members:
             undefined = subprocess.run([nm, "-u", obj], check=True, capture_output=True, text=True).stdout.split()
-            # ___divsi3 and the like come from the static libclang_rt, not from a .tbd
-            missing = [s for s in undefined if s not in exported and s not in defined
-                       and not re.match(r"^___(div|mod|udiv|umod)\w*si3$", s)]
+            # ___divsi3, ___udivsi3 and the like (integer division by a variable: armv7 of the A5 has no
+            # divide instruction) are not in the stubs either, and the Theos toolchain links no libclang_rt
+            missing = [s for s in undefined if s not in exported and s not in defined]
             if missing:
                 status = 1
                 print(f"FAIL {Path(obj).name}: missing from the {ARCH} stubs: {', '.join(sorted(missing))}")

@@ -13,8 +13,9 @@ python3 "$ROOT/scripts/fix-sdk.py" "$SDK"
 
 status=0
 for file in "$ROOT"/tweaks/*/*.m; do
-    # -fsjlj-exceptions: same as clang 11 from the Theos toolchain for armv7
-    if clang -target armv7-apple-ios6.0 -isysroot "$SDK" -fobjc-arc -fsjlj-exceptions \
+    # -fsjlj-exceptions: same as clang 11 from the Theos toolchain for armv7;
+    # -Os: same as the release build (FINALPACKAGE=1), which decides what library calls are left
+    if clang -target armv7-apple-ios6.0 -isysroot "$SDK" -fobjc-arc -fsjlj-exceptions -Os \
         -Wall -Wextra -Wno-unused-parameter -Werror \
         -I"$ROOT/shared" -I"$THEOS/vendor/include" -F"$THEOS/vendor/lib" \
         -c "$file" -o "$OUT/$(basename "$(dirname "$file")")__$(basename "$file").o"; then

@@ -123,7 +123,9 @@ static UIImage *S4EDarkLaunchImage(UIImage *image) {
             int a = p[3];
             if (!a)
                 continue;
-            int r = p[0] * 255 / a, g = p[1] * 255 / a, b = p[2] * 255 / a;
+            // In floats: the A5 has no integer divide, and the SDK stubs have no ___udivsi3 to stand in
+            float unpremultiply = 255.0f / a;
+            int r = (int)(p[0] * unpremultiply), g = (int)(p[1] * unpremultiply), b = (int)(p[2] * unpremultiply);
             int d = delta[S4EClampByte(S4ELumaByte(r, g, b))];
             p[0] = (uint8_t)(S4EClampByte(r + d) * a / 255);
             p[1] = (uint8_t)(S4EClampByte(g + d) * a / 255);

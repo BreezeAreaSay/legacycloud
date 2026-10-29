@@ -125,6 +125,13 @@ def glyph_stopwatch(d):
     d.ellipse([p(13.2, 14.7), p(15.8, 17.3)], fill=WHITE)
 
 
+def glyph_magnifier(d):
+    # A magnifying glass: a ring and a handle
+    d.ellipse([p(4.5, 4.5), p(19.5, 19.5)], outline=WHITE, width=round(2.6 * U))
+    d.line([p(17.2, 17.2), p(24, 24)], fill=WHITE, width=round(3.6 * U))
+    d.ellipse([p(22.2, 22.2), p(25.8, 25.8)], fill=WHITE)
+
+
 ICONS = {
     "repo/CydiaIcon.png": ((115, 199, 252), (26, 112, 214), glyph_infinity),
     "icons/com.skeuo4ever.core.png": ((115, 199, 252), (26, 112, 214), glyph_infinity),
@@ -138,6 +145,7 @@ ICONS = {
     "icons/com.skeuo4ever.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
     "icons/com.skeuo4ever.screenshot.png": ((196, 150, 245), (112, 62, 190), glyph_markup),
     "icons/com.skeuo4ever.cameratimer.png": ((132, 141, 156), (52, 58, 70), glyph_stopwatch),
+    "icons/com.skeuo4ever.settingssearch.png": ((176, 182, 192), (98, 105, 118), glyph_magnifier),
     "icons/com.skeuo4ever.png": ((255, 176, 70), (232, 98, 18), glyph_infinity),
 }
 

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>cells</key>
+	<array>
+		<dict>
+			<key>default</key>
+			<true/>
+			<key>key</key>
+			<string>SettingsSearch</string>
+			<key>title</key>
+			<dict>
+				<key>en</key>
+				<string>Search in Settings</string>
+				<key>ru</key>
+				<string>Поиск в Настройках</string>
+			</dict>
+		</dict>
+	</array>
+	<key>footer</key>
+	<dict>
+		<key>en</key>
+		<string>A search bar at the top of Settings finds any setting by name. Tap a result to go straight to it.</string>
+		<key>ru</key>
+		<string>Строка поиска в начале Настроек находит любой параметр по названию. Нажмите на результат, чтобы сразу перейти к нему.</string>
+	</dict>
+	<key>order</key>
+	<integer>50</integer>
+</dict>
+</plist>

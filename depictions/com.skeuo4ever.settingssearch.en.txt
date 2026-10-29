@@ -1,0 +1,10 @@
+Search in Settings from iOS 9, built the iOS 6 way. The native search bar heads the main list of Settings — the same blue-grey bar as in Contacts and Mail.
+
+- Type a few letters — results come from every section: Apple's, app settings and tweaks, with the path to each item and the icon of its section;
+- tap a result — Settings walks there section by section, as if you tapped by hand;
+- a switch or another setting in place is scrolled to and highlighted for a moment.
+
+The index is built on the first search, so new apps and tweaks are found without a respring.
+
+## Settings
+Settings → Skeuo4Ever → Search in Settings.

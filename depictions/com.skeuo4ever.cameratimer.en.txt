@@ -1,6 +1,6 @@
-The self-timer from iOS 8, built the iOS 6 way. A timer button sits in Camera under the switch-camera button — the same dark glass capsule as the flash button, and it turns with the phone.
+The self-timer from iOS 8, built the iOS 6 way. It lives in Camera's own Options panel, between Grid and HDR and Panorama: the same translucent white rounded group with a grey segmented control — Off, 3 s, 10 s.
 
-- Tap it to choose 3 s, 10 s or off;
+- Tap Options and choose 3 s or 10 s;
 - press the shutter (on screen or a volume button) — a big digit counts down on a dark translucent square, like the iOS 6 volume indicator, with a tick every second;
 - press the shutter again to cancel the countdown.
 

@@ -21,9 +21,9 @@
 	<key>footer</key>
 	<dict>
 		<key>en</key>
-		<string>A timer button appears in Camera under the switch-camera button: tap it to choose 3 or 10 seconds, then press the shutter. Press the shutter again to cancel the countdown.</string>
+		<string>In Camera, tap Options and choose 3 or 10 seconds under Timer, then press the shutter. Press the shutter again to cancel the countdown.</string>
 		<key>ru</key>
-		<string>В Камере под кнопкой переключения камеры появится кнопка таймера: нажмите её, чтобы выбрать 3 или 10 секунд, и нажмите затвор. Повторное нажатие на затвор отменяет отсчёт.</string>
+		<string>В Камере нажмите «Параметры» и выберите в строке «Таймер» 3 или 10 секунд, затем нажмите затвор. Повторное нажатие на затвор отменяет отсчёт.</string>
 	</dict>
 	<key>order</key>
 	<integer>40</integer>

@@ -22,11 +22,12 @@ Bold Text → Accessibility, battery → General → Usage.
 - ✅ **Screenshot Preview with markup** (iOS 11): the screenshot shrinks into the corner as a photo in a white
   frame; markup with the black translucent bars of Photos, pen, marker, eraser and six colors. While the
   thumbnail is on screen the screenshot is not in Photos yet, so it can be deleted, as in iOS 11.
-- ✅ **Camera Timer** (iOS 8): a capsule under the switch-camera button, 3 or 10 seconds, a countdown digit on a
-  dark HUD like the iOS 6 volume indicator.
+- ✅ **Camera Timer** (iOS 8): a Timer group in Camera's own Options panel next to Grid and HDR, 3 or 10 seconds,
+  a countdown digit on a dark HUD like the iOS 6 volume indicator.
+- ✅ **Search in Settings** (iOS 9): the native search bar at the top of Settings, results from every section with
+  the path and the section icon; a tap walks there section by section and highlights the setting.
 - **Screen recording** (iOS 11) — our own implementation.
 - Several swipe actions on table cells (iOS 8): glossy More and Flag next to the red Delete.
-- Search in Settings (iOS 9).
 - Quick actions on icons (iOS 9/13): swipe up on an icon → a black glass menu with an arrow.
 - Message timestamps on swipe left (iOS 7).
 - Camera and microphone indicator (iOS 14).

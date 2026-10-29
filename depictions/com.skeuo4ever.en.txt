@@ -1,6 +1,7 @@
 Every Skeuo4Ever feature in one package:
 - Control Center
 - Screenshot Preview
+- Camera Timer
 - Space Bar Cursor
 - Swipe Back
 - Low Power Mode and Battery Health

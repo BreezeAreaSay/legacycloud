@@ -116,6 +116,15 @@ def glyph_markup(d):
     d.polygon([p(10, 17.5), p(12, 19.5), p(8.5, 21)], fill=WHITE)
 
 
+def glyph_stopwatch(d):
+    # A stopwatch: dial, crown and hand
+    d.ellipse([p(5.5, 7), p(23.5, 25)], outline=WHITE, width=round(2.2 * U))
+    d.rounded_rectangle([p(11.5, 2.5), p(17.5, 5.5)], radius=1 * U, fill=WHITE)
+    d.line([p(14.5, 16), p(14.5, 10.5)], fill=WHITE, width=round(2 * U))
+    d.line([p(14.5, 16), p(18.5, 18)], fill=WHITE, width=round(2 * U))
+    d.ellipse([p(13.2, 14.7), p(15.8, 17.3)], fill=WHITE)
+
+
 ICONS = {
     "repo/CydiaIcon.png": ((115, 199, 252), (26, 112, 214), glyph_infinity),
     "icons/com.skeuo4ever.core.png": ((115, 199, 252), (26, 112, 214), glyph_infinity),
@@ -128,6 +137,7 @@ ICONS = {
     "icons/com.skeuo4ever.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
     "icons/com.skeuo4ever.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
     "icons/com.skeuo4ever.screenshot.png": ((196, 150, 245), (112, 62, 190), glyph_markup),
+    "icons/com.skeuo4ever.cameratimer.png": ((132, 141, 156), (52, 58, 70), glyph_stopwatch),
     "icons/com.skeuo4ever.png": ((255, 176, 70), (232, 98, 18), glyph_infinity),
 }
 

@@ -469,8 +469,9 @@ static void IRDrawStroke(IRStroke *stroke) {
     [sheet showInView:self];
 }
 
+// Как в iOS 11: пока снимка нет в «Фото», «Готово» всегда спрашивает — сохранить или удалить
 - (void)doneTapped {
-    if (!self.edited) {
+    if (!_canDelete && !self.edited) {
         [self finish:IRMarkupKeep];
         return;
     }

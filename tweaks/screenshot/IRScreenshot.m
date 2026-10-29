@@ -1,6 +1,6 @@
 // Превью скриншота (iOS 11) в стиле iOS 6: снимок уменьшается в левый нижний угол и лежит там
 // фотографией в белой рамке. Нажатие открывает разметку, свайп влево убирает превью, само оно
-// уходит через 5 секунд.
+// уходит через 5 секунд. Крестик в углу — как у иконок в режиме удаления iOS 6 — сразу удаляет снимок.
 //
 // Как в iOS 11, пока превью на экране, снимка ещё нет в «Фото». После -[SBScreenShotter saveScreenshot:]
 // SpringBoard пишет снимок через UIImageWriteToSavedPhotosAlbum: этот вызов (в течение 3 секунд после
@@ -68,9 +68,47 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     return CGRectMake(CGRectGetMidX(rect) - fit.width / 2, CGRectGetMidY(rect) - fit.height / 2, fit.width, fit.height);
 }
 
+// Крестик iOS 6, как у иконок в режиме удаления: чёрный кружок в белом кольце
+static UIImage *IRCloseBoxImage(void) {
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(30, 30), NO, 0);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGRect circle = CGRectMake(4, 3, 22, 22);
+    CGContextSaveGState(ctx);
+    CGContextSetShadowWithColor(ctx, CGSizeMake(0, 1.5), 2, [UIColor colorWithWhite:0 alpha:0.6].CGColor);
+    [[UIColor whiteColor] setFill];
+    CGContextFillEllipseInRect(ctx, circle);
+    CGContextRestoreGState(ctx);
+    [[UIColor blackColor] setFill];
+    CGContextFillEllipseInRect(ctx, CGRectInset(circle, 2, 2));
+    UIBezierPath *cross = [UIBezierPath bezierPath];
+    CGFloat c = 4;
+    CGPoint center = CGPointMake(CGRectGetMidX(circle), CGRectGetMidY(circle));
+    [cross moveToPoint:CGPointMake(center.x - c, center.y - c)];
+    [cross addLineToPoint:CGPointMake(center.x + c, center.y + c)];
+    [cross moveToPoint:CGPointMake(center.x + c, center.y - c)];
+    [cross addLineToPoint:CGPointMake(center.x - c, center.y + c)];
+    cross.lineWidth = 2.2;
+    cross.lineCapStyle = kCGLineCapRound;
+    [[UIColor whiteColor] setStroke];
+    [cross stroke];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+// Превью ловит касания и чуть за своими краями: крестик торчит из угла
+@interface IRShotThumbView : UIView
+@end
+
+@implementation IRShotThumbView
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    return CGRectContainsPoint(CGRectInset(self.bounds, -14, -14), point);
+}
+@end
+
 #pragma mark - Контроллер
 
-@interface IRShotController : NSObject
+@interface IRShotController : NSObject <UIGestureRecognizerDelegate>
 + (instancetype)shared;
 @property(nonatomic, readonly) BOOL editing;
 @property(nonatomic, readonly) BOOL showingThumbnail;
@@ -85,6 +123,7 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     UIWindow *_thumbWindow;
     UIView *_thumbRoot;
     UIView *_thumb;
+    UIButton *_closeBox;
     CGRect _thumbHome;
     NSUInteger _generation;
     UIWindow *_editorWindow;
@@ -133,7 +172,7 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     _thumbRoot = IRShotOrientedRoot(_thumbWindow);
 
     // Снимок как фотография в белой рамке с тенью
-    _thumb = [[UIView alloc] initWithFrame:CGRectInset(IRShotFit(image.size, _thumbRoot.bounds), -3, -3)];
+    _thumb = [[IRShotThumbView alloc] initWithFrame:CGRectInset(IRShotFit(image.size, _thumbRoot.bounds), -3, -3)];
     _thumb.backgroundColor = [UIColor whiteColor];
     _thumb.layer.shadowColor = [UIColor blackColor].CGColor;
     _thumb.layer.shadowOpacity = 0.6;
@@ -143,8 +182,22 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     imageView.frame = CGRectInset(_thumb.bounds, 3, 3);
     imageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [_thumb addSubview:imageView];
-    [_thumb addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(thumbTapped)]];
-    [_thumb addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(thumbPanned:)]];
+    // Крестик — только пока снимка нет в «Фото»: удалить оттуда уже записанный снимок нечем
+    _closeBox = nil;
+    if (held) {
+        _closeBox = [UIButton buttonWithType:UIButtonTypeCustom];
+        [_closeBox setImage:IRCloseBoxImage() forState:UIControlStateNormal];
+        _closeBox.frame = CGRectMake(-15, -14, 30, 30);
+        _closeBox.alpha = 0;
+        [_closeBox addTarget:self action:@selector(deleteTapped) forControlEvents:UIControlEventTouchUpInside];
+        [_thumb addSubview:_closeBox];
+    }
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(thumbTapped)];
+    tap.delegate = self;
+    [_thumb addGestureRecognizer:tap];
+    UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(thumbPanned:)];
+    pan.delegate = self;
+    [_thumb addGestureRecognizer:pan];
     [_thumbRoot addSubview:_thumb];
     _thumbWindow.hidden = NO;
 
@@ -170,7 +223,34 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
         return;
     _thumb.layer.shadowPath = [UIBezierPath bezierPathWithRect:_thumb.bounds].CGPath;
     _thumbWindow.userInteractionEnabled = YES;
+    [UIView animateWithDuration:0.2 animations:^{
+        self->_closeBox.alpha = 1;
+    }];
     [self scheduleTimeout];
+}
+
+// Касания крестика — его собственные, а не нажатие или свайп по превью
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)recognizer shouldReceiveTouch:(UITouch *)touch {
+    return !_closeBox || ![touch.view isDescendantOfView:_closeBox];
+}
+
+// Крестик: снимок не записывается, превью сжимается и исчезает
+- (void)deleteTapped {
+    if (!_thumb || !_held)
+        return;
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(thumbnailTimedOut) object:nil];
+    _held = NO;
+    _image = nil;
+    NSUInteger generation = _generation;
+    _thumbWindow.userInteractionEnabled = NO;
+    [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+        self->_thumb.transform = CGAffineTransformMakeScale(0.2, 0.2);
+        self->_thumb.alpha = 0;
+    } completion:^(BOOL finished) {
+        IRShotController *controller = [IRShotController shared];
+        if (generation == controller->_generation)
+            [controller removeThumbnail];
+    }];
 }
 
 - (void)scheduleTimeout {
@@ -213,6 +293,7 @@ static CGRect IRShotFit(CGSize size, CGRect rect) {
     _thumbWindow = nil;
     _thumbRoot = nil;
     _thumb = nil;
+    _closeBox = nil;
 }
 
 - (void)thumbPanned:(UIPanGestureRecognizer *)pan {

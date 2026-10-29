@@ -554,9 +554,9 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
     }
 
     if (IRFeatureInstalled(@"IRNewAppDot")) {
-        [specs addObject:IRGroup(nil, @"Синяя точка рядом с названием только что установленной программы. "
-                                      @"Исчезает после первого запуска.")];
-        [specs addObject:[self ir_switch:@"Метки новых программ" key:kIRNewAppDot fallback:YES]];
+        [specs addObject:IRGroup(nil, @"Лента «Новое» на иконке только что установленной программы — не только из App Store, "
+                                      @"но и из ipa или Cydia. Исчезает после первого запуска.")];
+        [specs addObject:[self ir_switch:@"Лента «Новое»" key:kIRNewAppDot fallback:YES]];
     }
 
     if (IRFeatureInstalled(@"IRDesktopSite"))

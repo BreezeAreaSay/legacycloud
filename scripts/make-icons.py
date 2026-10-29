@@ -73,10 +73,11 @@ def glyph_moon(d):
 
 
 def glyph_new_app(d):
-    # Мини-иконка программы и подпись с точкой слева
-    d.rounded_rectangle([p(9, 4.5), p(20, 15.5)], radius=2.5 * U, fill=WHITE)
-    d.ellipse([p(5, 19), p(9, 23)], fill=WHITE)
-    d.rounded_rectangle([p(11, 19.8), p(24, 22.2)], radius=1.2 * U, fill=WHITE)
+    # Иконка программы и лента «Новое» наискосок через правый верхний угол
+    d.rounded_rectangle([p(4.5, 4.5), p(24.5, 24.5)], radius=4 * U, outline=WHITE, width=round(1.8 * U))
+    # Зазор вокруг ленты, чтобы она читалась поверх рамки
+    d.polygon([p(9.5, 2), p(17.5, 2), p(27, 11.5), p(27, 19.5)], fill=0)
+    d.polygon([p(11.5, 3), p(16.5, 3), p(26, 12.5), p(26, 17.5)], fill=WHITE)
 
 
 def glyph_bold(d):

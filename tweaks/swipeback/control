@@ -1,9 +1,9 @@
 Package: com.skeuo4ever.swipeback
 Name: Swipe Back
-Version: 0.4.1
+Version: 0.5.0
 Architecture: iphoneos-arm
 Description: Swipe from the left edge to go back (iOS 7) with the iOS 6 slide animation
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1)
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.5.0)

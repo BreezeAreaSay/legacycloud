@@ -24,8 +24,6 @@ static const NSUInteger kS4EMaxResults = 60;
 
 @interface PSListController (S4ESettingsSearch)
 - (NSIndexPath *)indexPathForSpecifier:(PSSpecifier *)specifier;
-- (UITableView *)table;
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath;
 - (NSMutableArray *)s4e_buildSpecifiers;
 @end
 

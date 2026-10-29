@@ -1,9 +1,9 @@
 Package: com.skeuo4ever.battery
 Name: Low Power Mode & Battery Health
-Version: 0.4.1
+Version: 0.5.0
 Architecture: iphoneos-arm
 Description: Low Power Mode (iOS 9) and Battery Health (iOS 11.3)
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1)
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.5.0)

@@ -1,0 +1,14 @@
+Dark Mode from iOS 13, built from iOS 6's own dark materials — as if iOS 6 had a dark side all along.
+
+- Bars turn into black glass, the black style of Photos and Music, and the status bar follows;
+- grouped lists, as in Settings and Contacts, lie on dark linen with charcoal cells and black borders;
+- plain lists, as in Mail, Music and Phone, become charcoal, their section headers dark;
+- dark text turns light but keeps its color, so values stay blue, and the white embossing under it becomes a black one on top, like the titles of iOS 6 bars;
+- the keyboard is the dark one of alerts, action sheets are black translucent.
+
+It switches live, without restarting apps. Automatic turns it on and off on a schedule; Light or Dark chosen by hand holds until the next change, as in iOS 13.
+
+Apple apps always follow the appearance. Other apps only with In Other Apps on, after they are reopened. Only what an app leaves standard is changed: a list with its own background or a bar with its own picture keeps its look.
+
+## Settings
+Settings → Skeuo4Ever → Dark Mode, or Settings → Brightness & Wallpaper → Dark Mode.

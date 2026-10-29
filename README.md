@@ -19,6 +19,7 @@ on any device with iOS 6.0–6.1.x.
 | `com.skeuo4ever.controlcenter` — Control Center | iOS 7 | Swipe up from the bottom edge (an Activator gesture): grey linen and square buttons in grey frames, like Auxo, native brightness and volume sliders, music, flashlight; the iOS 7 iPad layout in landscape |
 | `com.skeuo4ever.screenshot` — Screenshot Preview | iOS 11 | The screenshot shrinks into the corner as a photo in a white frame; tap it for markup with the black bars of Photos, pen, marker and eraser; the cross deletes it |
 | `com.skeuo4ever.cameratimer` — Camera Timer | iOS 8 | A Timer group in Camera's own Options panel, next to Grid and HDR; 3 or 10 seconds, counted down by a big digit on a dark HUD like the iOS 6 volume indicator |
+| `com.skeuo4ever.darkmode` — Dark Mode | iOS 13 | Black glass bars, grouped lists on dark linen with charcoal cells, light text with the embossing on top, the dark alert keyboard; live switching and a schedule |
 | `com.skeuo4ever.settingssearch` — Settings Search | iOS 9 | The native search bar at the top of Settings; results from every section with the path and the section icon, a tap walks there and highlights the setting |
 | `com.skeuo4ever.keyboardcursor` — Space Bar Cursor | iOS 12 | Slide along the space bar to move the cursor by letters and lines; slide from Shift to select |
 | `com.skeuo4ever.swipeback` — Swipe Back | iOS 7 | A swipe from the left edge; both screens slide together, as in the iOS 6 animation, with a shadow along the edge |

@@ -140,6 +140,11 @@ enum {
 - (BOOL)getGroup:(int *)group row:(int *)row ofSpecifierID:(NSString *)identifier;
 - (int)indexOfGroup:(int)group;
 - (NSArray *)specifiersInGroup:(int)group;
+- (UITableView *)table;
+- (int)indexForIndexPath:(NSIndexPath *)indexPath;
+- (PSSpecifier *)specifierAtIndex:(int)index;
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath;
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath;
 @end
 
 @interface PSListItemsController : PSListController

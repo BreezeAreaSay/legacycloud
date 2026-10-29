@@ -5,6 +5,7 @@
 #import "S4EShared.h"
 #import "S4EPrivate.h"
 #import "S4ENightShift.h"
+#import "S4EDarkMode.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <sys/sysctl.h>
@@ -124,6 +125,7 @@ static id S4EValueFor(PSSpecifier *spec) {
 
 @interface S4EListController : PSListController
 - (NSMutableArray *)s4e_buildSpecifiers;
+- (PSSpecifier *)s4e_time:(NSString *)name key:(NSString *)key fallback:(int)fallback;
 @end
 
 @implementation S4EListController
@@ -174,6 +176,17 @@ static id S4EValueFor(PSSpecifier *spec) {
     [spec setProperty:key forKey:@"s4eKey"];
     [spec setProperty:fallback forKey:@"s4eDefault"];
     return spec;
+}
+
+// A time of day every half an hour, as in the Night Shift and Dark Mode schedules
+- (PSSpecifier *)s4e_time:(NSString *)name key:(NSString *)key fallback:(int)fallback {
+    NSMutableArray *values = [NSMutableArray array];
+    NSMutableArray *titles = [NSMutableArray array];
+    for (int minutes = 0; minutes < 24 * 60; minutes += 30) {
+        [values addObject:@(minutes)];
+        [titles addObject:[NSString stringWithFormat:@"%02d:%02d", minutes / 60, minutes % 60]];
+    }
+    return [self s4e_choice:name key:key values:values titles:titles fallback:@(fallback)];
 }
 
 - (id)s4e_value:(PSSpecifier *)spec {
@@ -329,16 +342,6 @@ static double S4EDesignCapacityForModel(void) {
     return specs;
 }
 
-- (PSSpecifier *)s4e_time:(NSString *)name key:(NSString *)key fallback:(int)fallback {
-    NSMutableArray *values = [NSMutableArray array];
-    NSMutableArray *titles = [NSMutableArray array];
-    for (int minutes = 0; minutes < 24 * 60; minutes += 30) {
-        [values addObject:@(minutes)];
-        [titles addObject:[NSString stringWithFormat:@"%02d:%02d", minutes / 60, minutes % 60]];
-    }
-    return [self s4e_choice:name key:key values:values titles:titles fallback:@(fallback)];
-}
-
 - (void)s4e_setValue:(id)value specifier:(PSSpecifier *)spec {
     [super s4e_setValue:value specifier:spec];
     if ([[spec propertyForKey:@"s4eKey"] isEqualToString:kS4ENSScheduled])
@@ -351,6 +354,96 @@ static double S4EDesignCapacityForModel(void) {
 
 - (void)s4e_setManual:(id)value specifier:(PSSpecifier *)spec {
     S4EPrefsSetValues(S4ENSManualChanges(S4EPrefsRead() ?: @{}, [value boolValue], [NSDate date]));
+}
+
+@end
+
+#pragma mark - Dark Mode (iOS 13)
+
+@interface S4EDarkModeController : S4EListController
+@end
+
+@implementation S4EDarkModeController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = S4E_L(@"Dark Mode", @"Тёмный режим");
+}
+
+- (NSMutableArray *)s4e_buildSpecifiers {
+    NSMutableArray *specs = [NSMutableArray array];
+    NSDictionary *prefs = S4EPrefsRead() ?: @{};
+
+    [specs addObject:S4EGroup(S4E_L(@"Appearance", @"Оформление"),
+                              S4E_L(@"Dark Mode is built from iOS 6's own dark materials: black glass bars, dark linen under "
+                                    @"grouped lists, the dark keyboard of alerts and black action sheets.",
+                                    @"Тёмный режим собран из тёмных материалов самой iOS 6: панели из чёрного стекла, тёмный лён "
+                                    @"под списками, тёмная клавиатура из алертов и чёрные меню действий."))];
+    for (NSNumber *dark in @[@NO, @YES]) {
+        PSSpecifier *row = [PSSpecifier preferenceSpecifierNamed:dark.boolValue ? S4E_L(@"Dark", @"Тёмное") : S4E_L(@"Light", @"Светлое")
+                                                          target:self set:NULL get:NULL detail:nil cell:PSListItemCell edit:nil];
+        [row setProperty:dark forKey:@"s4eAppearance"];
+        [specs addObject:row];
+    }
+
+    [specs addObject:S4EGroup(nil, S4E_L(@"With Automatic on, Dark Mode turns on and off on a schedule. Light or Dark chosen by hand "
+                                         @"holds until the next change.",
+                                         @"Если включено «Автоматически», тёмный режим включается и выключается по расписанию. "
+                                         @"Оформление, выбранное вручную, действует до следующей смены."))];
+    [specs addObject:[PSSpecifier preferenceSpecifierNamed:S4E_L(@"Automatic", @"Автоматически") target:self
+                                                       set:@selector(s4e_setAutomatic:specifier:) get:@selector(s4e_automatic:)
+                                                    detail:nil cell:PSSwitchCell edit:nil]];
+    if (S4EBool(prefs, kS4EDMAutomatic, NO)) {
+        [specs addObject:[self s4e_time:S4E_L(@"Dark From", @"Тёмное с") key:kS4EDMFrom fallback:S4E_DM_DEFAULT_FROM]];
+        [specs addObject:[self s4e_time:S4E_L(@"Light From", @"Светлое с") key:kS4EDMTo fallback:S4E_DM_DEFAULT_TO]];
+    }
+
+    [specs addObject:S4EGroup(nil, S4E_L(@"Apple apps always follow the appearance. Other apps change after they are reopened, "
+                                         @"and some of them may look unusual.",
+                                         @"Программы Apple всегда следуют оформлению. Другие программы меняются после перезапуска, "
+                                         @"и некоторые из них могут выглядеть непривычно."))];
+    [specs addObject:[self s4e_switch:S4E_L(@"In Other Apps", @"В других программах") key:kS4EDMOtherApps fallback:NO]];
+    return specs;
+}
+
+- (NSNumber *)s4e_appearanceAtIndexPath:(NSIndexPath *)indexPath {
+    PSSpecifier *spec = [self specifierAtIndex:[self indexForIndexPath:indexPath]];
+    return [spec propertyForKey:@"s4eAppearance"];
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [super tableView:tableView cellForRowAtIndexPath:indexPath];
+    NSNumber *appearance = [self s4e_appearanceAtIndexPath:indexPath];
+    if (appearance) {
+        BOOL dark = S4EDMIsDark(S4EPrefsRead() ?: @{}, [NSDate date]);
+        cell.accessoryType = appearance.boolValue == dark ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
+    }
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSNumber *appearance = [self s4e_appearanceAtIndexPath:indexPath];
+    if (!appearance) {
+        [super tableView:tableView didSelectRowAtIndexPath:indexPath];
+        return;
+    }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    S4EPrefsSetValues(S4EDMChoose(S4EPrefsRead() ?: @{}, appearance.boolValue, [NSDate date]));
+    for (NSIndexPath *visible in tableView.indexPathsForVisibleRows) {
+        NSNumber *rowAppearance = [self s4e_appearanceAtIndexPath:visible];
+        if (rowAppearance)
+            [tableView cellForRowAtIndexPath:visible].accessoryType = rowAppearance.boolValue == appearance.boolValue
+                ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
+    }
+}
+
+- (id)s4e_automatic:(PSSpecifier *)spec {
+    return @(S4EBool(S4EPrefsRead(), kS4EDMAutomatic, NO));
+}
+
+- (void)s4e_setAutomatic:(id)value specifier:(PSSpecifier *)spec {
+    S4EPrefsSetValues(S4EDMSetAutomatic(S4EPrefsRead() ?: @{}, [value boolValue], [NSDate date]));
+    [self s4e_refresh]; // show or hide the schedule and move the checkmark
 }
 
 @end
@@ -453,13 +546,18 @@ static void S4EInjectNative(PSListController *controller) {
         break;
     }
     case S4EPaneBrightness: {
-        // As a separate group under brightness, like in iOS 10
-        if (!S4EFeatureInstalled(@"S4ENightShift"))
+        // As a separate group under brightness, like Appearance and Night Shift in iOS 13
+        NSMutableArray *added = [NSMutableArray array];
+        if (S4EFeatureInstalled(@"S4EDarkMode"))
+            [added addObject:S4EMakeLink(bridge, S4E_L(@"Dark Mode", @"Тёмный режим"), [S4EDarkModeController class])];
+        if (S4EFeatureInstalled(@"S4ENightShift"))
+            [added addObject:S4EMakeLink(bridge, @"Night Shift", [S4ENightShiftController class])];
+        if (!added.count)
             return;
         PSSpecifier *group = S4EGroup(nil, nil);
         group.identifier = S4E_NATIVE_ID;
-        PSSpecifier *nightShift = S4EMakeLink(bridge, @"Night Shift", [S4ENightShiftController class]);
-        S4EInsertSpecifiers(controller, @[group, nightShift], S4EEndOfFirstGroup(specs));
+        [added insertObject:group atIndex:0];
+        S4EInsertSpecifiers(controller, added, S4EEndOfFirstGroup(specs));
         break;
     }
     case S4EPaneAccessibility: {
@@ -580,9 +678,12 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
         [specs addObject:[self s4e_link:S4E_L(@"Battery Health", @"Состояние аккумулятора") detail:[S4EBatteryHealthController class]]];
     }
 
-    if (S4EFeatureInstalled(@"S4ENightShift")) {
+    if (S4EFeatureInstalled(@"S4EDarkMode") || S4EFeatureInstalled(@"S4ENightShift")) {
         [specs addObject:S4EGroup(nil, nil)];
-        [specs addObject:[self s4e_link:@"Night Shift" detail:[S4ENightShiftController class]]];
+        if (S4EFeatureInstalled(@"S4EDarkMode"))
+            [specs addObject:[self s4e_link:S4E_L(@"Dark Mode", @"Тёмный режим") detail:[S4EDarkModeController class]]];
+        if (S4EFeatureInstalled(@"S4ENightShift"))
+            [specs addObject:[self s4e_link:@"Night Shift" detail:[S4ENightShiftController class]]];
     }
 
     if (S4EFeatureInstalled(@"S4EBoldText")) {
@@ -626,9 +727,9 @@ static void hook_PSListController_viewWillAppear(PSListController *self, SEL _cm
                 [specs addObject:[self s4e_switch:S4ESectionText(cell[@"title"]) key:cell[@"key"] fallback:[cell[@"default"] boolValue]]];
     }
 
-    [specs addObject:S4EGroup(nil, S4E_L(@"Items also appear where they live in newer iOS: Night Shift in Brightness & Wallpaper, "
+    [specs addObject:S4EGroup(nil, S4E_L(@"Items also appear where they live in newer iOS: Dark Mode and Night Shift in Brightness & Wallpaper, "
                                          @"Low Power Mode in General → Usage, Bold Text in Accessibility.",
-                                         @"Пункты появятся и там, где они в новых iOS: Night Shift — в «Яркость и обои», "
+                                         @"Пункты появятся и там, где они в новых iOS: тёмный режим и Night Shift — в «Яркость и обои», "
                                          @"энергосбережение — в «Основные → Статистика», жирный шрифт — в «Универсальный доступ»."))];
     [specs addObject:[self s4e_switch:S4E_L(@"Show in Settings Sections", @"Пункты в разделах Настроек") key:kS4ENativeSettings fallback:YES]];
     [specs addObject:[self s4e_link:S4E_L(@"Settings Sections", @"Разделы Настроек") detail:[S4EPaneLogController class]]];

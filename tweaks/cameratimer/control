@@ -1,9 +1,9 @@
 Package: com.skeuo4ever.cameratimer
 Name: Camera Timer
-Version: 0.4.3
+Version: 0.5.0
 Architecture: iphoneos-arm
 Description: A 3 or 10 second self-timer in the Options panel of Camera (iOS 8)
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1)
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.5.0)

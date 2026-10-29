@@ -9,11 +9,16 @@
 // a cell with its own background view keep their look. The app's own values are remembered, so the
 // appearance switches back and forth live, without restarting apps.
 //
-// SpringBoard is the engine: it decides the appearance from the settings and the schedule and publishes
-// it. Apple apps always follow it; other apps only if In Other Apps was on when they started.
+// Text that an app draws itself (drawRect:, as in the lists of Contacts, Mail and Cydia) gets the same
+// treatment while it draws inside a dark list: dark colors are set light, white is set charcoal.
+//
+// SpringBoard is the engine (S4EDarkSpringBoard.m): it decides the appearance and publishes it. Apple apps
+// always follow it; other apps only if In Other Apps was on when they started.
 
 #import "S4EShared.h"
 #import "S4EDarkMode.h"
+#include <dlfcn.h>
+#include <pthread.h>
 
 @interface UIColor (S4EDarkMode)
 - (NSString *)_systemColorName;
@@ -206,6 +211,30 @@ static void S4ETheme(id object, const void *key, BOOL dark, id (^get)(void), voi
         objc_setAssociatedObject(object, key, keep ? @[S4EBox(original), S4EBox(current)] : nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
+#pragma mark - Views that draw themselves
+
+// drawRect: implemented outside UIKit: by the app, or by another framework such as AddressBookUI. Cached per class.
+static BOOL S4EDrawsItself(Class cls) {
+    static CFMutableDictionaryRef cache;
+    static IMP plain;
+    static const char *uikit;
+    if (!cache) {
+        cache = CFDictionaryCreateMutable(NULL, 0, NULL, NULL);
+        plain = class_getMethodImplementation([UIView class], @selector(drawRect:));
+        Dl_info info;
+        if (dladdr((const void *)plain, &info))
+            uikit = info.dli_fname;
+    }
+    const void *known;
+    if (CFDictionaryGetValueIfPresent(cache, (__bridge const void *)cls, &known))
+        return known != NULL;
+    IMP imp = class_getMethodImplementation(cls, @selector(drawRect:));
+    Dl_info info;
+    BOOL own = imp != plain && dladdr((const void *)imp, &info) && (!uikit || strcmp(info.dli_fname, uikit) != 0);
+    CFDictionarySetValue(cache, (__bridge const void *)cls, own ? (const void *)1 : NULL);
+    return own;
+}
+
 #pragma mark - Text
 
 static const char kS4ETextKey, kS4EShadowKey, kS4EOffsetKey, kS4ETextBackKey;
@@ -253,18 +282,46 @@ static BOOL S4EIsBar(UIView *view) {
     return [view isKindOfClass:[UINavigationBar class]] || [view isKindOfClass:[UIToolbar class]] || [view isKindOfClass:[UISearchBar class]];
 }
 
-// Text inside a cell or a header of our own: labels, bare text fields, text views. Controls draw their own
-// text, bars are themed separately, and a light surface of the app's own keeps its dark text.
+static const char kS4EViewBackKey, kS4ESelfDrawnKey;
+
+// A view that draws itself: its light background goes dark, and it is redrawn when the appearance changes
+// (its colors are swapped while it draws, see S4EDarkDrawingFill)
+static void S4EStyleSelfDrawn(UIView *view, BOOL dark, UIColor *fill) {
+    S4ETheme(view, &kS4EViewBackKey, dark, ^id { return view.backgroundColor; }, ^(id value) { view.backgroundColor = value; },
+             ^id(UIColor *original) {
+                 return original && !S4EIsClear(original) && S4EIsLightBackground(original) ? (fill ?: [UIColor clearColor]) : nil;
+             });
+    BOOL was = objc_getAssociatedObject(view, &kS4ESelfDrawnKey) != nil;
+    if (was != dark) {
+        objc_setAssociatedObject(view, &kS4ESelfDrawnKey, dark ? @YES : nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [view setNeedsDisplay];
+    }
+}
+
+// Text inside a cell or a header of our own: labels, bare text fields, text views and views that draw
+// themselves. Controls draw their own text, bars are themed separately, and a light surface of the app's
+// own keeps its dark text.
 static void S4EStyleContent(UIView *view, BOOL dark, UIColor *fill, int depth) {
     for (UIView *sub in view.subviews) {
-        if ([sub isKindOfClass:[UILabel class]])
+        if ([sub isKindOfClass:[UILabel class]]) {
             S4EStyleLabel((UILabel *)sub, dark, fill);
-        else if ([sub isKindOfClass:[UITextField class]])
+            continue;
+        }
+        if ([sub isKindOfClass:[UITextField class]]) {
             S4EStyleTextField((UITextField *)sub, dark);
-        else if ([sub isKindOfClass:[UITextView class]])
+            continue;
+        }
+        if ([sub isKindOfClass:[UITextView class]]) {
             S4EStyleTextView((UITextView *)sub, dark, fill);
-        else if (depth < 3 && ![sub isKindOfClass:[UIControl class]] && ![sub isKindOfClass:[UIImageView class]] && !S4EIsBar(sub) &&
-                 ![sub isKindOfClass:[UITableView class]] && !(sub.backgroundColor && !S4EIsClear(sub.backgroundColor)))
+            continue;
+        }
+        if ([sub isKindOfClass:[UIControl class]] || [sub isKindOfClass:[UIImageView class]] || S4EIsBar(sub) ||
+            [sub isKindOfClass:[UITableView class]])
+            continue;
+        BOOL drawsItself = S4EDrawsItself(object_getClass(sub));
+        if (drawsItself)
+            S4EStyleSelfDrawn(sub, dark, fill);
+        if (depth < 3 && (drawsItself || !(sub.backgroundColor && !S4EIsClear(sub.backgroundColor))))
             S4EStyleContent(sub, dark, fill, depth + 1);
     }
 }
@@ -331,7 +388,12 @@ static void S4EStyleCell(UITableViewCell *cell) {
              ^id(UIColor *original) { return original && !S4EIsClear(original) && S4EIsLightBackground(original) ? fill : nil; });
     S4EStyleContent(content, dark && standard, fill, 0);
     // A cell that was dark keeps being checked, even from the reuse queue, until it is light again
-    objc_setAssociatedObject(cell, &kS4ETouchedKey, dark ? @YES : nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    BOOL was = objc_getAssociatedObject(cell, &kS4ETouchedKey) != nil, now = dark && standard;
+    if (was != now) {
+        objc_setAssociatedObject(cell, &kS4ETouchedKey, now ? @YES : nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        if (S4EDrawsItself(object_getClass(cell)))
+            [cell setNeedsDisplay];
+    }
 }
 
 static void S4EStyleHeader(UITableViewHeaderFooterView *header) {
@@ -354,13 +416,17 @@ static void S4EStyleLooseView(UIView *view, UITableView *table) {
     if ([view isKindOfClass:[UITableViewCell class]] || [view isKindOfClass:[UITableViewHeaderFooterView class]] ||
         [view isKindOfClass:[UIImageView class]] || S4EIsBar(view) || [view isKindOfClass:[UIControl class]])
         return;
+    BOOL dark = gDark && S4ETableThemed(table);
     if ([view isKindOfClass:[UILabel class]]) {
-        S4EStyleLabel((UILabel *)view, gDark && S4ETableThemed(table), nil);
+        S4EStyleLabel((UILabel *)view, dark, nil);
         return;
     }
-    if (view.backgroundColor && !S4EIsClear(view.backgroundColor))
+    BOOL drawsItself = S4EDrawsItself(object_getClass(view));
+    if (drawsItself)
+        S4EStyleSelfDrawn(view, dark, nil);
+    else if (view.backgroundColor && !S4EIsClear(view.backgroundColor))
         return;
-    S4EStyleContent(view, gDark && S4ETableThemed(table), nil, 0);
+    S4EStyleContent(view, dark, nil, 0);
 }
 
 static void S4EStyleTable(UITableView *table) {
@@ -410,6 +476,8 @@ static void S4ERestyle(UIView *view) {
         S4EStyleHeader((UITableViewHeaderFooterView *)view);
     else if ([view.superview isKindOfClass:[UITableView class]])
         S4EStyleLooseView(view, (UITableView *)view.superview);
+    else if (S4EDrawsItself(object_getClass(view)))
+        [view setNeedsDisplay];
     for (UIView *sub in view.subviews)
         S4ERestyle(sub);
 }
@@ -569,48 +637,126 @@ static void hook_showFromRect(UIActionSheet *self, SEL _cmd, CGRect rect, UIView
     orig_showFromRect(self, _cmd, rect, view, animated);
 }
 
-#pragma mark - SpringBoard: the engine
+#pragma mark - Colors set while a view draws itself
 
-@interface S4EAppearanceClock : NSObject
-@end
+static int gDrawingDark;    // > 0 while a view that draws itself draws inside a dark list (main thread only)
+static BOOL gSettingColor;
+static UIColor *gDrawingFill;
 
-static S4EAppearanceClock *gClock;
-static NSTimer *gClockTimer;
-
-static void S4EPublishAppearance(void) {
-    NSDictionary *prefs = S4EPrefsRead() ?: @{};
-    uint64_t state = S4EAppearancePublished | (S4EDMIsDark(prefs, [NSDate date]) ? S4EAppearanceDark : 0) |
-                     (S4EBool(prefs, kS4EDMOtherApps, NO) ? S4EAppearanceOtherApps : 0);
-    static int token;
-    static BOOL ready;
-    if (!ready)
-        ready = notify_register_check(S4E_NOTIFY_APPEARANCE, &token) == NOTIFY_STATUS_OK;
-    if (ready) {
-        uint64_t old = 0;
-        notify_get_state(token, &old);
-        if (old != state) {
-            notify_set_state(token, state);
-            notify_post(S4E_NOTIFY_APPEARANCE);
+// The color behind a view that draws itself inside a dark list, or nil to leave its drawing alone.
+// A highlighted cell keeps its white-on-blue drawing.
+static UIColor *S4EDarkDrawingFill(UIView *view) {
+    int depth = 0;
+    for (UIView *v = view; v && depth < 8; v = v.superview, depth++) {
+        if ([v isKindOfClass:[UITableViewCell class]]) {
+            UITableViewCell *cell = (UITableViewCell *)v;
+            if (((cell.highlighted || cell.selected) && cell.selectionStyle != UITableViewCellSelectionStyleNone) ||
+                !objc_getAssociatedObject(cell, &kS4ETouchedKey))
+                return nil;
+        }
+        if ([v isKindOfClass:[UITableView class]]) {
+            UITableView *table = (UITableView *)v;
+            return S4ETableThemed(table) ? (table.style == UITableViewStyleGrouped ? S4EGroupedCell() : S4EPlainBack()) : nil;
         }
     }
-    // The schedule is checked twice a minute only while Automatic is on
-    BOOL automatic = S4EBool(prefs, kS4EDMAutomatic, NO);
-    if (automatic && !gClockTimer)
-        gClockTimer = [NSTimer scheduledTimerWithTimeInterval:30 target:gClock selector:@selector(tick:) userInfo:nil repeats:YES];
-    else if (!automatic && gClockTimer) {
-        [gClockTimer invalidate];
-        gClockTimer = nil;
+    return nil;
+}
+
+static void (*orig_drawLayer)(UIView *, SEL, CALayer *, CGContextRef);
+static void hook_drawLayer(UIView *self, SEL _cmd, CALayer *layer, CGContextRef context) {
+    UIColor *fill = gDark && pthread_main_np() && S4EDrawsItself(object_getClass(self)) ? S4EDarkDrawingFill(self) : nil;
+    if (!fill) {
+        orig_drawLayer(self, _cmd, layer, context);
+        return;
+    }
+    UIColor *outer = gDrawingFill;
+    gDrawingFill = fill;
+    gDrawingDark++;
+    orig_drawLayer(self, _cmd, layer, context);
+    gDrawingDark--;
+    gDrawingFill = outer;
+}
+
+// Dark ink becomes light, white paper becomes the list's charcoal
+static UIColor *S4EDrawingColor(UIColor *color) {
+    CGFloat r, g, b, a;
+    if (!S4ERGBA(color, &r, &g, &b, &a) || a < 0.05f)
+        return nil;
+    if (S4ELuma(r, g, b) > 0.85f)
+        return a > 0.95f ? gDrawingFill : [gDrawingFill colorWithAlphaComponent:a];
+    return S4ELightText(color);
+}
+
+// UIColor and its concrete subclasses each implement -set, -setFill and -setStroke
+static void S4ESetColor(UIColor *color, SEL selector, void (*orig)(UIColor *, SEL)) {
+    if (gDrawingDark && !gSettingColor && pthread_main_np()) {
+        UIColor *mapped = S4EDrawingColor(color);
+        if (mapped && mapped != color) {
+            gSettingColor = YES; // mapped may be of another class: let its own method do it
+            ((void (*)(id, SEL))objc_msgSend)(mapped, selector);
+            gSettingColor = NO;
+            return;
+        }
+    }
+    orig(color, selector);
+}
+
+#define S4E_SET_HOOKS(name)                                                          \
+    static void (*orig_##name##_set)(UIColor *, SEL);                                 \
+    static void hook_##name##_set(UIColor *self, SEL _cmd) {                          \
+        S4ESetColor(self, _cmd, orig_##name##_set);                                   \
+    }                                                                                 \
+    static void (*orig_##name##_setFill)(UIColor *, SEL);                             \
+    static void hook_##name##_setFill(UIColor *self, SEL _cmd) {                      \
+        S4ESetColor(self, _cmd, orig_##name##_setFill);                               \
+    }                                                                                 \
+    static void (*orig_##name##_setStroke)(UIColor *, SEL);                           \
+    static void hook_##name##_setStroke(UIColor *self, SEL _cmd) {                    \
+        S4ESetColor(self, _cmd, orig_##name##_setStroke);                             \
+    }
+
+S4E_SET_HOOKS(color)
+S4E_SET_HOOKS(cgColor)
+S4E_SET_HOOKS(ciColor)
+S4E_SET_HOOKS(rgbColor)
+S4E_SET_HOOKS(whiteColor)
+
+#define S4E_HOOK_SET(cls, name)                                                                         \
+    do {                                                                                                \
+        Class _cls = (cls);                                                                             \
+        S4E_HOOK(_cls, @selector(set), hook_##name##_set, &orig_##name##_set);                          \
+        S4E_HOOK(_cls, @selector(setFill), hook_##name##_setFill, &orig_##name##_setFill);              \
+        S4E_HOOK(_cls, @selector(setStroke), hook_##name##_setStroke, &orig_##name##_setStroke);        \
+    } while (0)
+
+#pragma mark - Text colors set later
+
+// An app may color a label after its cell was laid out: theme it again where it lives
+static void S4ERestyleAround(UIView *view) {
+    UIView *child = view;
+    int depth = 0;
+    for (UIView *v = view.superview; v && depth < 8; child = v, v = v.superview, depth++) {
+        if ([v isKindOfClass:[UITableViewCell class]]) {
+            S4EStyleCell((UITableViewCell *)v);
+            return;
+        }
+        if ([v isKindOfClass:[UITableViewHeaderFooterView class]]) {
+            S4EStyleHeader((UITableViewHeaderFooterView *)v);
+            return;
+        }
+        if ([v isKindOfClass:[UITableView class]]) {
+            if (S4ETableThemed((UITableView *)v))
+                S4EStyleLooseView(child, (UITableView *)v);
+            return;
+        }
     }
 }
 
-@implementation S4EAppearanceClock
-- (void)tick:(NSTimer *)timer {
-    S4EPublishAppearance();
-}
-@end
-
-static void S4EEngineWake(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef info) {
-    S4EPublishAppearance();
+static void (*orig_label_setTextColor)(UILabel *, SEL, UIColor *);
+static void hook_label_setTextColor(UILabel *self, SEL _cmd, UIColor *color) {
+    orig_label_setTextColor(self, _cmd, color);
+    if (gDark && !gApplying && self.superview)
+        S4ERestyleAround(self);
 }
 
 #pragma mark - Start
@@ -621,18 +767,8 @@ __attribute__((constructor)) static void S4EDarkModeInit(void) {
         NSString *identifier = bundle.bundleIdentifier;
         if (!identifier || ![bundle.bundlePath hasSuffix:@".app"])
             return;
-        if ([identifier isEqualToString:@"com.apple.springboard"]) {
-            gClock = [[S4EAppearanceClock alloc] init];
-            S4EObserveDarwin(S4E_NOTIFY_PREFS, S4EEngineWake);
-            // A timer stands still while the phone sleeps: check again when the screen turns on
-            S4EObserveDarwin("com.apple.springboard.hasBlankedScreen", S4EEngineWake);
-            [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationSignificantTimeChangeNotification object:nil queue:nil
-                                                          usingBlock:^(NSNotification *note) {
-                                                              S4EPublishAppearance();
-                                                          }];
-            S4EPublishAppearance();
-            return;
-        }
+        if ([identifier isEqualToString:@"com.apple.springboard"])
+            return; // the engine, launch images and icons: S4EDarkSpringBoard.m
         // Other apps are decided once, at launch: games and the rest stay untouched unless allowed
         gAppleApp = [identifier hasPrefix:@"com.apple."];
         uint64_t state = S4EAppearance();
@@ -656,6 +792,14 @@ __attribute__((constructor)) static void S4EDarkModeInit(void) {
         Class groupBackground = objc_getClass("UIGroupTableViewCellBackground");
         S4E_HOOK(groupBackground, @selector(_bottomShadowColor), hook_bottomShadowColor, &orig_bottomShadowColor);
         S4E_HOOK(groupBackground, @selector(_topShadowColor), hook_topShadowColor, &orig_topShadowColor);
+
+        S4E_HOOK([UILabel class], @selector(setTextColor:), hook_label_setTextColor, &orig_label_setTextColor);
+        S4E_HOOK([UIView class], @selector(drawLayer:inContext:), hook_drawLayer, &orig_drawLayer);
+        S4E_HOOK_SET([UIColor class], color);
+        S4E_HOOK_SET(objc_getClass("UICGColor"), cgColor);
+        S4E_HOOK_SET(objc_getClass("UICIColor"), ciColor);
+        S4E_HOOK_SET(objc_getClass("UIDeviceRGBColor"), rgbColor);
+        S4E_HOOK_SET(objc_getClass("UIDeviceWhiteColor"), whiteColor);
 
         S4E_HOOK(objc_getClass("UITextInputTraits"), @selector(keyboardAppearance), hook_keyboardAppearance, &orig_keyboardAppearance);
 

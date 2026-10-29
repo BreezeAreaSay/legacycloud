@@ -4,7 +4,10 @@ Dark Mode from iOS 13, built from iOS 6's own dark materials — as if iOS 6 had
 - grouped lists, as in Settings and Contacts, lie on dark linen with charcoal cells and black borders;
 - plain lists, as in Mail, Music and Phone, become charcoal, their section headers dark;
 - dark text turns light but keeps its color, so values stay blue, and the white embossing under it becomes a black one on top, like the titles of iOS 6 bars;
-- the keyboard is the dark one of alerts, action sheets are black translucent.
+- text that an app draws itself, as in the lists of Contacts, Mail and Cydia, is recolored while it is drawn;
+- the keyboard is the dark one of alerts, action sheets are black translucent;
+- an app starts on a darkened copy of its launch picture, so there is no white flash;
+- icons can turn dark as in iOS 18: the background becomes black glass with the iOS 6 gloss, and a white symbol takes the color the background had.
 
 It switches live, without restarting apps. Automatic turns it on and off on a schedule; Light or Dark chosen by hand holds until the next change, as in iOS 13.
 

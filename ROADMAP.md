@@ -38,7 +38,8 @@ Bold Text → Accessibility, battery → General → Usage.
 ## Stage 3 — flagships
 - ✅ **Dark Mode** (iOS 13) from iOS 6's own dark materials: black glass bars, grouped lists on dark linen with
   charcoal cells, light text with the embossing on top, the `UIKeyboardAppearanceAlert` keyboard, black action
-  sheets. Switches live, Automatic on a schedule; Apple apps always, other apps on request.
+  sheets, text drawn by apps themselves recolored while drawn, darkened launch pictures, dark icons as in
+  iOS 18. Switches live, Automatic on a schedule; Apple apps always, other apps on request.
 - Incoming call as a banner (iOS 14).
 - QR scanner in Camera (iOS 11).
 - Recently Deleted in Photos (iOS 8).

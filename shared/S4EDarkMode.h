@@ -15,6 +15,7 @@
 #define kS4EDMTo @"DarkModeTo"                       // light from
 #define kS4EDMUntil @"DarkModeChoiceUntil"           // a choice made while Automatic is on holds until then
 #define kS4EDMOtherApps @"DarkModeOtherApps"
+#define kS4EDMIcons @"DarkModeIcons"                 // "auto" (with Dark Mode), "dark" or "light"
 
 #define S4E_DM_DEFAULT_FROM (22 * 60)
 #define S4E_DM_DEFAULT_TO (7 * 60)

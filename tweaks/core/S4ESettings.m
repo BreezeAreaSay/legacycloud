@@ -398,6 +398,14 @@ static double S4EDesignCapacityForModel(void) {
         [specs addObject:[self s4e_time:S4E_L(@"Light From", @"Светлое с") key:kS4EDMTo fallback:S4E_DM_DEFAULT_TO]];
     }
 
+    [specs addObject:S4EGroup(nil, S4E_L(@"Dark icons as in iOS 18: the background turns into black glass and the symbol takes its color. "
+                                         @"Automatic follows Dark Mode.",
+                                         @"Тёмные иконки, как в iOS 18: фон становится чёрным стеклом, а символ берёт его цвет. "
+                                         @"«Автоматически» — вместе с тёмным режимом."))];
+    [specs addObject:[self s4e_choice:S4E_L(@"Icons", @"Иконки") key:kS4EDMIcons values:@[@"auto", @"dark", @"light"]
+                              titles:@[S4E_L(@"Automatic", @"Автоматически"), S4E_L(@"Dark", @"Тёмные"), S4E_L(@"Light", @"Светлые")]
+                            fallback:@"auto"]];
+
     [specs addObject:S4EGroup(nil, S4E_L(@"Apple apps always follow the appearance. Other apps change after they are reopened, "
                                          @"and some of them may look unusual.",
                                          @"Программы Apple всегда следуют оформлению. Другие программы меняются после перезапуска, "

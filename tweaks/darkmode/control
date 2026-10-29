@@ -1,9 +1,9 @@
 Package: com.skeuo4ever.darkmode
 Name: Dark Mode
-Version: 0.5.0
+Version: 0.5.1
 Architecture: iphoneos-arm
 Description: Dark Mode from iOS 13, built from iOS 6's own dark materials: black glass bars, dark linen, the dark keyboard
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.5.0)
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.5.1)

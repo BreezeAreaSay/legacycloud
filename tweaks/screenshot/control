@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.screenshot
 Name: Screenshot Preview
-Version: 0.5.0
+Version: 0.5.1
 Architecture: iphoneos-arm
 Description: Screenshot thumbnail in the corner with markup (iOS 11)
 Maintainer: SmokinInTheWoods

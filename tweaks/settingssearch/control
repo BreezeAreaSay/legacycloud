@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.settingssearch
 Name: Settings Search
-Version: 0.5.0
+Version: 0.5.1
 Architecture: iphoneos-arm
 Description: A search bar at the top of Settings that finds any setting and takes you there (iOS 9)
 Maintainer: SmokinInTheWoods

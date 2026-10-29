@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.boldtext
 Name: Bold Text
-Version: 0.5.0
+Version: 0.5.1
 Architecture: iphoneos-arm
 Description: Bold Text accessibility option (iOS 7)
 Maintainer: SmokinInTheWoods

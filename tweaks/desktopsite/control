@@ -1,6 +1,6 @@
 Package: com.skeuo4ever.desktopsite
 Name: Request Desktop Site
-Version: 0.5.0
+Version: 0.5.1
 Architecture: iphoneos-arm
 Description: Request Desktop Site in the Safari share sheet (iOS 9)
 Maintainer: SmokinInTheWoods

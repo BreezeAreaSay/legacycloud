@@ -1,11 +1,9 @@
 Package: com.skeuo4ever.desktopsite
 Name: Request Desktop Site
-Version: 0.4.0
+Version: 0.4.1
 Architecture: iphoneos-arm
 Description: Request Desktop Site in the Safari share sheet (iOS 9)
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.0)
-Conflicts: com.ios6revive.desktopsite
-Replaces: com.ios6revive.desktopsite
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1)

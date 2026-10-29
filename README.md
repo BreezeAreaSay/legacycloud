@@ -27,7 +27,7 @@ on any device with iOS 6.0–6.1.x.
 | `com.skeuo4ever.boldtext` — Bold Text | iOS 7 | The system font and Helvetica one weight bolder in every app |
 | `com.skeuo4ever.desktopsite` — Request Desktop Site | iOS 9 | A Request Desktop Site item in Safari's native share sheet |
 | `com.skeuo4ever.core` | — | The **Settings → Skeuo4Ever** item and shared services; installed automatically |
-| `com.skeuo4ever` | — | Meta package: every feature in one install; replaces the old iOS6Revive packages |
+| `com.skeuo4ever` | — | Meta package: every feature in one install |
 
 Each feature is a separate package; Settings → Skeuo4Ever shows only the installed ones.
 
@@ -55,11 +55,6 @@ https://vdch00.github.io/Skeuo4Ever/
 The repo page has an "Add to Cydia" button. GitHub Pages works over HTTPS only. If Cydia on iOS 6 cannot
 connect, download the `.deb` files from the build artifacts (the Actions tab) or from
 `https://vdch00.github.io/Skeuo4Ever/debs/` and install them by hand.
-
-### Moving from iOS6Revive
-The project used to be called iOS6Revive (`com.ios6revive.*`). Install the **Skeuo4Ever** package from the new
-source: it replaces all the old packages, and Cydia removes them in the same step. Settings, Night Shift data and
-Activator gestures carry over by themselves.
 
 ### Enabling publishing (once)
 1. On the free plan, GitHub Pages works only for **public** repositories:

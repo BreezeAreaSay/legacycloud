@@ -1,11 +1,9 @@
 Package: com.skeuo4ever
 Name: Skeuo4Ever
-Version: 0.4.0
+Version: 0.4.1
 Architecture: iphoneos-arm
 Description: Every Skeuo4Ever feature in one package: modern iOS features, skeuomorphic forever
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
 Depends: com.skeuo4ever.swipeback, com.skeuo4ever.battery, com.skeuo4ever.nightshift, com.skeuo4ever.newsash, com.skeuo4ever.boldtext, com.skeuo4ever.desktopsite, com.skeuo4ever.controlcenter, com.skeuo4ever.keyboardcursor, com.skeuo4ever.screenshot
-Conflicts: com.ios6revive.quickwins
-Replaces: com.ios6revive.quickwins

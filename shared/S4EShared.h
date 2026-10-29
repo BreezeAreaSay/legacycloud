@@ -9,9 +9,6 @@
 //
 // Language: every user-facing string is written in English and Russian with S4E_L(en, ru). Settings
 // offer Automatic (the system language), English and Russian.
-//
-// The project used to be called iOS6Revive: the first read of the settings and data copies them over
-// from the old locations, so nothing is lost after the rename.
 
 #pragma once
 
@@ -28,19 +25,15 @@
 #define S4E_DATA_DIR @"/var/mobile/Library/Skeuo4Ever"
 #define S4E_DYLIB_DIR @"/Library/MobileSubstrate/DynamicLibraries"
 
-// Where iOS6Revive kept the same things
-#define S4E_LEGACY_PREFS_PATH @"/var/mobile/Library/Preferences/com.ios6revive.plist"
-#define S4E_LEGACY_DATA_DIR @"/var/mobile/Library/iOS6Revive"
-
 #define S4E_NOTIFY_PREFS "com.skeuo4ever/prefs-changed"
 #define S4E_NOTIFY_STATE "com.skeuo4ever/state"
 #define S4E_NOTIFY_RESPRING "com.skeuo4ever/respring"
 
-// Settings keys (the values stay as they were in iOS6Revive so old settings carry over)
+// Settings keys
 #define kS4ESwipeBack @"SwipeBack"
 #define kS4ELowPower @"LowPowerMode"
 #define kS4EBoldText @"BoldText"
-#define kS4ENewSash @"NewAppDot"
+#define kS4ENewSash @"NewAppSash"
 #define kS4ELanguage @"Language" // "auto", "en" or "ru"
 
 // State bit mask published by SpringBoard
@@ -61,14 +54,7 @@ enum {
     } while (0)
 
 static inline S4E_UNUSED NSDictionary *S4EPrefsRead(void) {
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:S4E_PREFS_PATH];
-    if (!prefs) {
-        // First launch after the rename: carry over the iOS6Revive settings (sandboxed apps simply fail)
-        NSFileManager *files = [NSFileManager defaultManager];
-        if ([files fileExistsAtPath:S4E_LEGACY_PREFS_PATH] && [files copyItemAtPath:S4E_LEGACY_PREFS_PATH toPath:S4E_PREFS_PATH error:NULL])
-            prefs = [NSDictionary dictionaryWithContentsOfFile:S4E_PREFS_PATH];
-    }
-    return prefs;
+    return [NSDictionary dictionaryWithContentsOfFile:S4E_PREFS_PATH];
 }
 
 static inline S4E_UNUSED BOOL S4EBool(NSDictionary *prefs, NSString *key, BOOL fallback) {
@@ -133,13 +119,7 @@ static inline S4E_UNUSED BOOL S4EIsProcess(NSString *bundleID) {
 }
 
 static inline S4E_UNUSED NSString *S4EDataPath(NSString *name) {
-    NSFileManager *files = [NSFileManager defaultManager];
-    BOOL directory = NO;
-    if (![files fileExistsAtPath:S4E_DATA_DIR isDirectory:&directory]) {
-        // First launch after the rename: the iOS6Revive data (including Night Shift's original gamma table) moves over
-        if (![files fileExistsAtPath:S4E_LEGACY_DATA_DIR] || ![files moveItemAtPath:S4E_LEGACY_DATA_DIR toPath:S4E_DATA_DIR error:NULL])
-            [files createDirectoryAtPath:S4E_DATA_DIR withIntermediateDirectories:YES attributes:nil error:NULL];
-    }
+    [[NSFileManager defaultManager] createDirectoryAtPath:S4E_DATA_DIR withIntermediateDirectories:YES attributes:nil error:NULL];
     return [S4E_DATA_DIR stringByAppendingPathComponent:name];
 }
 

@@ -1,11 +1,9 @@
 Package: com.skeuo4ever.nightshift
 Name: Night Shift
-Version: 0.4.0
+Version: 0.4.1
 Architecture: iphoneos-arm
 Description: Night Shift (iOS 9.3): warm display colors on a schedule
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.0)
-Conflicts: com.ios6revive.nightshift
-Replaces: com.ios6revive.nightshift
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1)

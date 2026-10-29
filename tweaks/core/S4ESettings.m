@@ -372,7 +372,7 @@ static NSString *S4ESectionText(id value) {
     return [value isKindOfClass:[NSString class]] ? value : nil;
 }
 #define S4E_PANE_LOG @"settings-panes.plist"
-#define S4E_NATIVE_ID @"IOS6REVIVE_NATIVE"
+#define S4E_NATIVE_ID @"SKEUO4EVER_NATIVE"
 
 typedef enum { S4EPaneNone, S4EPaneUsage, S4EPaneBrightness, S4EPaneAccessibility } S4EPane;
 
@@ -708,7 +708,7 @@ static void S4EInsertSettingsEntry(PSListController *root) {
 
     PSSpecifier *entry = [PSSpecifier preferenceSpecifierNamed:@"Skeuo4Ever" target:root set:NULL get:NULL
                                                         detail:[S4ERootListController class] cell:PSLinkCell edit:nil];
-    entry.identifier = @"IOS6REVIVE";
+    entry.identifier = @"SKEUO4EVER";
     [entry setProperty:S4ESettingsIcon() forKey:@"iconImage"];
 
     // At the end of the General, Sounds, Brightness & Wallpaper, Privacy group, like PreferenceLoader.

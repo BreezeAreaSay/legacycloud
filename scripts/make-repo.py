@@ -17,9 +17,6 @@ Cydia on iOS 6 runs Description through APT's conversion to ASCII, so anything b
 (the Depiction field), which Cydia opens in a browser where UTF-8 works. The page is bilingual:
 depictions/<package>.en.txt and depictions/<package>.ru.txt, shown by the system language with a
 switch at the top. Icons are icons/<package>.png.
-
-Packages of the old name (iOS6Revive, com.ios6revive.*) stay in published.json and debs/, but are no
-longer listed: the new packages replace them.
 """
 
 import bz2
@@ -41,7 +38,6 @@ DEBS = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "debs"
 SITE = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "_site"
 REPO_URL = os.environ.get("S4E_REPO_URL", "").rstrip("/")
 GENERATED = ["Packages", "Packages.gz", "Packages.bz2", "depictions"]  # Release is written separately
-RETIRED_PREFIXES = ("com.ios6revive.",)
 
 RELEASE_HEADER = """Origin: Skeuo4Ever
 Label: Skeuo4Ever
@@ -243,8 +239,6 @@ def main() -> None:
 
     entries = []
     for package in sorted(manifest):
-        if package.startswith(RETIRED_PREFIXES):
-            continue
         versions = manifest[package]
         ordered = sorted(versions, key=cmp_to_key(version_cmp))
         latest_control = control_of(SITE / versions[ordered[-1]]["file"])

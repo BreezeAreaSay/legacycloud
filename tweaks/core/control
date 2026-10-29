@@ -1,11 +1,9 @@
 Package: com.skeuo4ever.core
 Name: Skeuo4Ever Core
-Version: 0.4.0
+Version: 0.4.1
 Architecture: iphoneos-arm
 Description: Skeuo4Ever core: Settings pane and shared services
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
 Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0)
-Conflicts: com.ios6revive.core
-Replaces: com.ios6revive.core

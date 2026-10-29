@@ -1,11 +1,9 @@
 Package: com.skeuo4ever.newsash
 Name: New App Sash
-Version: 0.4.0
+Version: 0.4.1
 Architecture: iphoneos-arm
 Description: The iOS 6 New sash on every newly installed app, including ipa and Cydia apps
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.0)
-Conflicts: com.ios6revive.newappdot
-Replaces: com.ios6revive.newappdot
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1)

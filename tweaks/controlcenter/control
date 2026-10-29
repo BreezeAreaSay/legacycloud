@@ -1,11 +1,9 @@
 Package: com.skeuo4ever.controlcenter
 Name: Control Center
-Version: 0.4.0
+Version: 0.4.1
 Architecture: iphoneos-arm
 Description: Control Center (iOS 7) in skeuomorphic style, opened with an Activator gesture
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
 Section: Skeuo4Ever
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.0), libactivator
-Conflicts: com.ios6revive.controlcenter
-Replaces: com.ios6revive.controlcenter
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.1), libactivator

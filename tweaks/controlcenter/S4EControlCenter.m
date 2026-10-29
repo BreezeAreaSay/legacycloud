@@ -83,7 +83,6 @@ static const UIWindowLevel kS4ECCWindowLevel = 1050;
 - (void)registerListener:(id)listener forName:(NSString *)name;
 - (void)assignEvent:(LAEvent *)event toListenerWithName:(NSString *)listenerName;
 - (NSString *)assignedListenerNameForEvent:(LAEvent *)event;
-- (NSArray *)eventsAssignedToListenerWithName:(NSString *)listenerName;
 @end
 
 @interface SBApplicationController (S4EControlCenter)
@@ -761,12 +760,6 @@ static void S4EAssignDefaultGestures(void) {
     Class eventClass = objc_getClass("LAEvent");
     if (!activator || !springBoard || !application || !eventClass)
         return;
-    // The action used to be called com.ios6revive.controlcenter: its gestures move over to the new name
-    NSArray *legacy = [activator respondsToSelector:@selector(eventsAssignedToListenerWithName:)]
-        ? [activator eventsAssignedToListenerWithName:@"com.ios6revive.controlcenter"] : nil;
-    for (LAEvent *event in legacy)
-        [activator assignEvent:event toListenerWithName:kS4ECCListener];
-
     NSArray *done = S4EPrefsRead()[kS4ECCActivatorEvents];
     NSMutableArray *handled = [done isKindOfClass:[NSArray class]] ? [done mutableCopy] : [NSMutableArray array];
     BOOL changed = NO;

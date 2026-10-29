@@ -10,6 +10,3 @@ Every Skeuo4Ever feature in one package:
 - Request Desktop Site
 
 You can remove any feature separately later.
-
-## Moving from iOS6Revive
-The project used to be called iOS6Revive. This package replaces all the old iOS6Revive packages: Cydia removes them and installs the new ones. Settings and Activator gestures carry over by themselves.

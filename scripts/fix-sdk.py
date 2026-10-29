@@ -11,7 +11,7 @@
 import sys
 from pathlib import Path
 
-MARKER = "# iOS6Revive: 32-битные символы"
+MARKER = "# Skeuo4Ever: 32-битные символы"
 BLOCK = f"""  {MARKER}
   - archs:                [ armv7, armv7s ]
     symbols:              [ _objc_msgSendSuper2_stret, _objc_msgSendSuper_stret,

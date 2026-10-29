@@ -1,9 +1,0 @@
-Package: com.ios6revive.newappdot
-Name: Лента «Новое»
-Version: 0.2.0
-Architecture: iphoneos-arm
-Description: Native iOS 6 New sash on every newly installed app, including ipa and Cydia apps
-Maintainer: SmokinInTheWoods
-Author: SmokinInTheWoods
-Section: iOS6Revive
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.6)

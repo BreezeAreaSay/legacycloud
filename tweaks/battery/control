@@ -1,9 +1,11 @@
-Package: com.ios6revive.battery
-Name: Энергосбережение и аккумулятор
-Version: 0.1.2
+Package: com.skeuo4ever.battery
+Name: Low Power Mode & Battery Health
+Version: 0.4.0
 Architecture: iphoneos-arm
 Description: Low Power Mode (iOS 9) and Battery Health (iOS 11.3)
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
-Section: iOS6Revive
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.0)
+Section: Skeuo4Ever
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.0)
+Conflicts: com.ios6revive.battery
+Replaces: com.ios6revive.battery

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>cells</key>
+	<array>
+		<dict>
+			<key>default</key>
+			<true/>
+			<key>key</key>
+			<string>KeyboardCursor</string>
+			<key>title</key>
+			<dict>
+				<key>en</key>
+				<string>Space Bar Cursor</string>
+				<key>ru</key>
+				<string>Курсор свайпом по пробелу</string>
+			</dict>
+		</dict>
+	</array>
+	<key>footer</key>
+	<dict>
+		<key>en</key>
+		<string>Slide your finger along the space bar to move the cursor: left and right by letters, up and down by lines. Slide from Shift to select text.</string>
+		<key>ru</key>
+		<string>Ведите пальцем по пробелу, чтобы двигать курсор: влево-вправо по буквам, вверх-вниз по строкам. Свайп от Shift выделяет текст.</string>
+	</dict>
+	<key>order</key>
+	<integer>20</integer>
+</dict>
+</plist>

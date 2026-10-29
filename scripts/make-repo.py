@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Обновляет Cydia-источник iOS6Revive в каталоге SITE (рабочая копия ветки gh-pages).
+"""Обновляет Cydia-источник Skeuo4Ever в каталоге SITE (рабочая копия ветки gh-pages).
 
 Использование: scripts/make-repo.py [DEBS] [SITE]   (по умолчанию debs/ и _site/)
-IR_REPO_URL — адрес источника, нужен для полей Depiction, Icon и Homepage.
+S4E_REPO_URL — адрес источника, нужен для полей Depiction, Icon и Homepage.
 
 Как в sqmrak/sqmrakdev, опубликованное не переписывается:
   * SITE/published.json помнит каждую выпущенную версию: файл, sha256 и отпечаток исходников
@@ -35,14 +35,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DEBS = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "debs"
 SITE = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "_site"
-REPO_URL = os.environ.get("IR_REPO_URL", "").rstrip("/")
+REPO_URL = os.environ.get("S4E_REPO_URL", "").rstrip("/")
 GENERATED = ["Packages", "Packages.gz", "Packages.bz2", "depictions"]  # Release пишется отдельно
 
-RELEASE_HEADER = """Origin: iOS6Revive
-Label: iOS6Revive
+RELEASE_HEADER = """Origin: Skeuo4Ever
+Label: Skeuo4Ever
 Suite: stable
 Version: 1.0
-Codename: ios6revive
+Codename: skeuo4ever
 Architectures: iphoneos-arm
 Components: main
 Description: New iOS features in iOS 6 style

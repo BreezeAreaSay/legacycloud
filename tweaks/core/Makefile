@@ -1,17 +1,17 @@
 include ../../common.mk
 include $(THEOS)/makefiles/common.mk
 
-# Два модуля: IRCore живёт в SpringBoard, IRSettings — в Настройках (тянет Preferences.framework).
-TWEAK_NAME = IRCore IRSettings
+# Два модуля: S4ECore живёт в SpringBoard, S4ESettings — в Настройках (тянет Preferences.framework).
+TWEAK_NAME = S4ECore S4ESettings
 
-IRCore_FILES = IRCore.m
-IRCore_CFLAGS = $(IR_CFLAGS)
-IRCore_FRAMEWORKS = UIKit
+S4ECore_FILES = S4ECore.m
+S4ECore_CFLAGS = $(S4E_CFLAGS)
+S4ECore_FRAMEWORKS = UIKit
 
-IRSettings_FILES = IRSettings.m
-IRSettings_CFLAGS = $(IR_CFLAGS)
-IRSettings_FRAMEWORKS = UIKit CoreGraphics
-IRSettings_PRIVATE_FRAMEWORKS = Preferences
-IRSettings_LIBRARIES = substrate
+S4ESettings_FILES = S4ESettings.m
+S4ESettings_CFLAGS = $(S4E_CFLAGS)
+S4ESettings_FRAMEWORKS = UIKit CoreGraphics
+S4ESettings_PRIVATE_FRAMEWORKS = Preferences
+S4ESettings_LIBRARIES = substrate
 
 include $(THEOS_MAKE_PATH)/tweak.mk

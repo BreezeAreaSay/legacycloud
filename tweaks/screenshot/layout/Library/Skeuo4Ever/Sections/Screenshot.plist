@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>cells</key>
+	<array>
+		<dict>
+			<key>default</key>
+			<true/>
+			<key>key</key>
+			<string>ScreenshotPreview</string>
+			<key>title</key>
+			<dict>
+				<key>en</key>
+				<string>Screenshot Preview</string>
+				<key>ru</key>
+				<string>Превью скриншота</string>
+			</dict>
+		</dict>
+	</array>
+	<key>footer</key>
+	<dict>
+		<key>en</key>
+		<string>After you take a screenshot, it shrinks into the lower left corner. Tap the thumbnail to mark it up or swipe it left to dismiss. The cross in its corner deletes the screenshot without saving it to Photos.</string>
+		<key>ru</key>
+		<string>После снимка экрана он уменьшается в левый нижний угол. Нажмите на превью, чтобы сделать пометки, или смахните его влево. Крестик в углу превью удаляет снимок, не сохраняя в «Фото».</string>
+	</dict>
+	<key>order</key>
+	<integer>30</integer>
+</dict>
+</plist>

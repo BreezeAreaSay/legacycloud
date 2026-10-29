@@ -1,9 +1,11 @@
-Package: com.ios6revive.controlcenter
-Name: Пункт управления
-Version: 0.3.3
+Package: com.skeuo4ever.controlcenter
+Name: Control Center
+Version: 0.4.0
 Architecture: iphoneos-arm
-Description: Control Center (iOS 7) in iOS 6 style, opened with an Activator gesture
+Description: Control Center (iOS 7) in skeuomorphic style, opened with an Activator gesture
 Maintainer: SmokinInTheWoods
 Author: SmokinInTheWoods
-Section: iOS6Revive
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.ios6revive.core (>= 0.1.5), libactivator
+Section: Skeuo4Ever
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0), com.skeuo4ever.core (>= 0.4.0), libactivator
+Conflicts: com.ios6revive.controlcenter
+Replaces: com.ios6revive.controlcenter

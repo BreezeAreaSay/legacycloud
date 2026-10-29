@@ -1,10 +1,10 @@
 include ../../common.mk
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = IRControlCenter
-IRControlCenter_FILES = IRControlCenter.m IRCCDrawing.m
-IRControlCenter_CFLAGS = $(IR_CFLAGS)
-IRControlCenter_FRAMEWORKS = UIKit QuartzCore CoreGraphics MediaPlayer AVFoundation
-IRControlCenter_LIBRARIES = substrate
+TWEAK_NAME = S4EControlCenter
+S4EControlCenter_FILES = S4EControlCenter.m S4ECCDrawing.m
+S4EControlCenter_CFLAGS = $(S4E_CFLAGS)
+S4EControlCenter_FRAMEWORKS = UIKit QuartzCore CoreGraphics MediaPlayer AVFoundation
+S4EControlCenter_LIBRARIES = substrate
 
 include $(THEOS_MAKE_PATH)/tweak.mk

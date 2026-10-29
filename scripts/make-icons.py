@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Рисует иконки в стиле iOS 6: глянцевый скруглённый квадрат и белый знак с мягкой тенью.
 
-  repo/CydiaIcon.png        — иконка источника (та же «6», что у пункта iOS6Revive в Настройках)
+  repo/CydiaIcon.png        — иконка источника (та же «6», что у пункта Skeuo4Ever в Настройках)
   icons/<пакет>.png         — иконки пакетов для Cydia и страниц пакетов
 
 Рисуем в 8 раз крупнее и уменьшаем, чтобы края были сглаженными.
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SIZE = 64
 K = 8
 S = SIZE * K
-U = S / 29  # единица — пункт иконки 29×29, как в IRSettings.m
+U = S / 29  # единица — пункт иконки 29×29, как в S4ESettings.m
 WHITE = 255
 
 
@@ -122,17 +122,17 @@ def glyph_bolt(d):
 
 ICONS = {
     "repo/CydiaIcon.png": ((115, 199, 252), (26, 112, 214), glyph_revive),
-    "icons/com.ios6revive.core.png": ((115, 199, 252), (26, 112, 214), glyph_revive),
-    "icons/com.ios6revive.swipeback.png": ((150, 168, 196), (78, 99, 135), glyph_back),
-    "icons/com.ios6revive.battery.png": ((255, 222, 92), (238, 160, 0), glyph_battery),
-    "icons/com.ios6revive.nightshift.png": ((72, 92, 160), (18, 26, 66), glyph_moon),
-    "icons/com.ios6revive.newappdot.png": ((110, 181, 255), (33, 99, 214), glyph_new_app),
-    "icons/com.ios6revive.boldtext.png": ((166, 173, 183), (90, 99, 112), glyph_bold),
-    "icons/com.ios6revive.desktopsite.png": ((100, 205, 250), (24, 116, 222), glyph_monitor),
-    "icons/com.ios6revive.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
-    "icons/com.ios6revive.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
-    "icons/com.ios6revive.screenshot.png": ((196, 150, 245), (112, 62, 190), glyph_markup),
-    "icons/com.ios6revive.quickwins.png": ((255, 176, 70), (232, 98, 18), glyph_bolt),
+    "icons/com.skeuo4ever.core.png": ((115, 199, 252), (26, 112, 214), glyph_revive),
+    "icons/com.skeuo4ever.swipeback.png": ((150, 168, 196), (78, 99, 135), glyph_back),
+    "icons/com.skeuo4ever.battery.png": ((255, 222, 92), (238, 160, 0), glyph_battery),
+    "icons/com.skeuo4ever.nightshift.png": ((72, 92, 160), (18, 26, 66), glyph_moon),
+    "icons/com.skeuo4ever.newsash.png": ((110, 181, 255), (33, 99, 214), glyph_new_app),
+    "icons/com.skeuo4ever.boldtext.png": ((166, 173, 183), (90, 99, 112), glyph_bold),
+    "icons/com.skeuo4ever.desktopsite.png": ((100, 205, 250), (24, 116, 222), glyph_monitor),
+    "icons/com.skeuo4ever.controlcenter.png": ((118, 124, 133), (40, 43, 48), glyph_controls),
+    "icons/com.skeuo4ever.keyboardcursor.png": ((150, 158, 172), (82, 90, 104), glyph_cursor),
+    "icons/com.skeuo4ever.screenshot.png": ((196, 150, 245), (112, 62, 190), glyph_markup),
+    "icons/com.skeuo4ever.png": ((255, 176, 70), (232, 98, 18), glyph_bolt),
 }
 
 

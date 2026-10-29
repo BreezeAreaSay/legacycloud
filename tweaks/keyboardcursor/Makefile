@@ -1,10 +1,10 @@
 include ../../common.mk
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = IRKeyboardCursor
-IRKeyboardCursor_FILES = IRKeyboardCursor.m
-IRKeyboardCursor_CFLAGS = $(IR_CFLAGS)
-IRKeyboardCursor_FRAMEWORKS = UIKit
-IRKeyboardCursor_LIBRARIES = substrate
+TWEAK_NAME = S4EKeyboardCursor
+S4EKeyboardCursor_FILES = S4EKeyboardCursor.m
+S4EKeyboardCursor_CFLAGS = $(S4E_CFLAGS)
+S4EKeyboardCursor_FRAMEWORKS = UIKit
+S4EKeyboardCursor_LIBRARIES = substrate
 
 include $(THEOS_MAKE_PATH)/tweak.mk
